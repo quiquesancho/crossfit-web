@@ -43,3 +43,16 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy-preproduction:
+    needs: image
+    if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: [self-hosted, raspberrypi, preproduction]
+    steps:
+      - name: Deploy web to preproduction
+        run: |
+          git -C /opt/crossfit/crossfit-deploy pull --ff-only
+          cd /opt/crossfit/crossfit-deploy
+          WEB_IMAGE="ghcr.io/quiquesancho/crossfit-web:sha-${GITHUB_SHA:0:7}" \
+          docker compose --env-file /opt/crossfit/preproduction/.env \
+            -f environments/preproduction/docker-compose.yml up -d --pull always web

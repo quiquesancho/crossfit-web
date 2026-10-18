@@ -58,3 +58,17 @@ jobs:
             ghcr.io/quiquesancho/crossfit-web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy-production:
+    needs: [release, image]
+    if: needs.release.outputs.published == 'true' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: [self-hosted, raspberrypi, production]
+    environment: production
+    steps:
+      - name: Deploy web to production
+        run: |
+          git -C /opt/crossfit/crossfit-deploy pull --ff-only
+          cd /opt/crossfit/crossfit-deploy
+          WEB_IMAGE="ghcr.io/quiquesancho/crossfit-web:v${{ needs.release.outputs.version }}" \
+          docker compose --env-file /opt/crossfit/production/.env \
+            -f environments/production/docker-compose.yml up -d --pull always web
