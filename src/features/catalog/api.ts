@@ -8,6 +8,7 @@ export type CatalogEntry = {
 };
 
 export type Movement = {
+  id: string;
   code: string;
   name: string;
   familyCode: string;

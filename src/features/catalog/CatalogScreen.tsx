@@ -52,7 +52,7 @@ export function CatalogScreen() {
       <h2>Movimientos</h2>
       <ul>
         {state.movements.map((movement) => (
-          <li key={movement.code}>
+          <li key={movement.id}>
             {movement.name} <small>({movement.familyCode})</small>
           </li>
         ))}
