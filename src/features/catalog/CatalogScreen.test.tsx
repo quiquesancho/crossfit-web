@@ -16,7 +16,16 @@ describe("CatalogScreen", () => {
         const url = String(input);
         const body = url.endsWith("/catalogs/block-type")
           ? { entries: [{ id: "1", code: "wod", description: "Workout of the day" }] }
-          : { movements: [{ code: "power-clean", name: "Power clean", familyCode: "clean" }] };
+          : {
+              movements: [
+                {
+                  id: "019b4e0a-0000-7000-8000-000000000010",
+                  code: "power-clean",
+                  name: "Power clean",
+                  familyCode: "clean",
+                },
+              ],
+            };
         return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
       }),
     );

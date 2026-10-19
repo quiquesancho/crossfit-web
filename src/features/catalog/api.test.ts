@@ -26,9 +26,19 @@ describe("catalog api", () => {
 
   it("requests the movement catalog", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ movements: [{ code: "power-clean", name: "Power clean", familyCode: "clean" }] }), {
-        status: 200,
-      }),
+      new Response(
+        JSON.stringify({
+          movements: [
+            {
+              id: "019b4e0a-0000-7000-8000-000000000010",
+              code: "power-clean",
+              name: "Power clean",
+              familyCode: "clean",
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
     );
     vi.stubGlobal("fetch", fetchMock);
 
