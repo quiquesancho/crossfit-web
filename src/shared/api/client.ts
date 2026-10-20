@@ -19,3 +19,15 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> 
 
   return (await response.json()) as T;
 }
+
+export async function apiPut<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: "PUT",
+    signal,
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) throw new ApiError(response.status);
+  return (await response.json()) as T;
+}

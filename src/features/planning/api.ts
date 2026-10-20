@@ -39,6 +39,8 @@ export type PlanningWeek = {
   }>;
 };
 
+export type PlannedSession = PlanningWeek["sessions"][number];
+
 export async function fetchPlanningWeek(weekStart: string, signal?: AbortSignal): Promise<PlanningWeek | null> {
   try {
     return await apiGet<PlanningWeek>(`/planning/weeks/${encodeURIComponent(weekStart)}`, signal);

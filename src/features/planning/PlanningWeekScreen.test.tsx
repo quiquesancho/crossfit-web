@@ -1,8 +1,11 @@
 import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { getOrCreateDraftForSession } from "../execution/drafts";
 import type { PlanningWeek } from "./api";
 import { PlanningWeekScreen } from "./PlanningWeekScreen";
+
+vi.mock("../execution/drafts", () => ({ getOrCreateDraftForSession: vi.fn() }));
 
 const week: PlanningWeek = {
   id: "week-id",
@@ -56,6 +59,7 @@ const week: PlanningWeek = {
 
 afterEach(() => {
   cleanup();
+  vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -110,5 +114,18 @@ describe("PlanningWeekScreen", () => {
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
 
     await waitFor(() => expect(screen.getByText(/no contiene sesiones/)).toBeDefined());
+  });
+
+  it("creates an offline draft from a planned session", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce({ id: "draft-id" } as never);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    expect(getOrCreateDraftForSession).toHaveBeenCalledWith(week.sessions[0]);
   });
 });

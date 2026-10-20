@@ -55,6 +55,13 @@ button { font: inherit; }
 .session-metrics, .block-metrics { display: flex; align-items: flex-start; gap: .4rem; flex-wrap: wrap; }
 .session-metrics span { padding: .35rem .55rem; border-radius: .45rem; color: #dce7dc; background: #ffffff14; font-size: .78rem; }
 .session-objective { margin: 0; padding: 1rem 1.4rem; border-bottom: 1px solid #e3e7e0; color: #526054; background: #f9faf7; }
+.execution-action { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.4rem; border-bottom: 1px solid #e3e7e0; background: #fff; }
+.execution-action strong { font-size: .9rem; }
+.execution-action p { margin: .2rem 0 0; color: #69746a; font-size: .8rem; }
+.execution-action button { flex: none; padding: .65rem .85rem; border: 0; border-radius: .6rem; color: #fff; background: #315e3c; cursor: pointer; font-weight: 750; }
+.execution-action button:hover:not(:disabled) { background: #244a2e; }
+.execution-action button:disabled { color: #667168; background: #dce4db; cursor: default; }
+.execution-action [role="alert"] { color: #9c3026; }
 .block-list { padding: .3rem 1.4rem; }
 .training-block { display: grid; grid-template-columns: 2.2rem 1fr; gap: .7rem; padding: 1.2rem 0; border-bottom: 1px solid #e4e8e1; }
 .training-block:last-child { border-bottom: 0; }
@@ -80,6 +87,7 @@ button { font: inherit; }
   .week-toolbar { align-items: stretch; flex-direction: column; }
   .week-navigation { align-self: stretch; justify-content: space-between; }
   .session-heading, .block-heading { flex-direction: column; }
+  .execution-action { align-items: stretch; flex-direction: column; }
   .session-metrics, .block-metrics { align-items: center; }
   .block-list { padding-inline: 1rem; }
   .plan-summary { padding: 1rem; }
