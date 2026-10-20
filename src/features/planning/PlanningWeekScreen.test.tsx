@@ -353,4 +353,40 @@ describe("PlanningWeekScreen", () => {
       }),
     );
   });
+
+  it("normalizes a legacy completed block when metrics are re-enabled", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    const legacyDraft = createDraft();
+    legacyDraft.snapshot.blocks[0] = {
+      ...legacyDraft.snapshot.blocks[0]!,
+      status: "completed_without_metric",
+    };
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(legacyDraft);
+    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+
+    const checkbox = screen.getByRole("checkbox", { name: "Sin métricas" });
+    expect((checkbox as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(checkbox);
+
+    await waitFor(() => expect((checkbox as HTMLInputElement).checked).toBe(false));
+    expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          blocks: expect.arrayContaining([
+            expect.objectContaining({
+              plannedBlockId: "block-id",
+              status: "completed",
+              withoutMetrics: false,
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
 });

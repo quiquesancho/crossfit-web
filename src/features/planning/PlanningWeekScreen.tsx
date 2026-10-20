@@ -204,7 +204,12 @@ function BlockAccordion({
                       <input
                         type="checkbox"
                         checked={withoutMetrics}
-                        onChange={(event) => changeExecutionBlock({ withoutMetrics: event.target.checked })}
+                        onChange={(event) =>
+                          changeExecutionBlock({
+                            status: effectiveStatus,
+                            withoutMetrics: event.target.checked,
+                          })
+                        }
                       />
                       <span>Sin métricas</span>
                     </label>
