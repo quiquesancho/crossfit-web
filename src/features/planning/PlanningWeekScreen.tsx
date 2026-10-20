@@ -675,55 +675,61 @@ function BlockAccordion({
                                 }
                               />
                               <span className="load-unit">{unit}</span>
-                              <label className="load-switch">
-                                <span
+                              <div className="load-switch">
+                                <button
+                                  type="button"
                                   className={`load-switch-label${
                                     loadStatus === "rx" ? " load-switch-label-rx-active" : ""
                                   }`}
-                                  onClick={(event) => {
-                                    event.preventDefault();
+                                  aria-label={`Usar RX en ${name}`}
+                                  aria-pressed={loadStatus === "rx"}
+                                  onClick={() =>
                                     changePrescriptionLoadStatus(
                                       item.id,
                                       "rx",
                                       prescribed,
                                       actualWeight,
-                                    );
-                                  }}
-                                >
-                                  RX
-                                </span>
-                                <input
-                                  type="checkbox"
-                                  role="switch"
-                                  aria-label={`Tipo de carga en ${name}`}
-                                  checked={loadStatus === "scaled"}
-                                  onChange={(event) =>
-                                    changePrescriptionLoadStatus(
-                                      item.id,
-                                      event.target.checked ? "scaled" : "rx",
-                                      prescribed,
-                                      actualWeight,
                                     )
                                   }
-                                />
-                                <span className="load-switch-track" aria-hidden="true" />
-                                <span
+                                >
+                                  RX
+                                </button>
+                                <label className="load-switch-toggle">
+                                  <input
+                                    type="checkbox"
+                                    role="switch"
+                                    aria-label={`Tipo de carga en ${name}`}
+                                    checked={loadStatus === "scaled"}
+                                    onChange={(event) =>
+                                      changePrescriptionLoadStatus(
+                                        item.id,
+                                        event.target.checked ? "scaled" : "rx",
+                                        prescribed,
+                                        actualWeight,
+                                      )
+                                    }
+                                  />
+                                  <span className="load-switch-track" aria-hidden="true" />
+                                </label>
+                                <button
+                                  type="button"
                                   className={`load-switch-label${
                                     loadStatus === "scaled" ? " load-switch-label-scaled-active" : ""
                                   }`}
-                                  onClick={(event) => {
-                                    event.preventDefault();
+                                  aria-label={`Marcar escalado en ${name}`}
+                                  aria-pressed={loadStatus === "scaled"}
+                                  onClick={() =>
                                     changePrescriptionLoadStatus(
                                       item.id,
                                       "scaled",
                                       prescribed,
                                       actualWeight,
-                                    );
-                                  }}
+                                    )
+                                  }
                                 >
                                   Escalado
-                                </span>
-                              </label>
+                                </button>
+                              </div>
                             </dd>
                           </div>
                         ) : null}
