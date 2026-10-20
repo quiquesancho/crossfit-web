@@ -100,7 +100,10 @@ button { font: inherit; }
 .block-status-completed, .block-status-completed_without_metric { --status-color: #2f6840; --status-background: #e0eee2; }
 .block-status-partial { --status-color: #89601f; --status-background: #f5ead5; }
 .block-status-abandoned { --status-color: #8b3c35; --status-background: #f5e1df; }
-.block-metrics .block-status-badge { padding: .25rem .5rem; border-radius: 999px; color: var(--status-color); background: var(--status-background); }
+.block-status-badge.block-status-badge { display: inline-block; padding: .25rem .55rem; border-radius: 999px; color: var(--status-color); background: var(--status-background); font-size: .74rem; font-weight: 800; }
+.block-status-current { margin: 0 0 .65rem; }
+.block-metrics-check { display: inline-flex; align-items: center; gap: .5rem; margin-top: .85rem; color: #3d4f42; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.block-metrics-check input { width: 1.05rem; height: 1.05rem; accent-color: #315e3c; }
 .block-notes { margin-top: 1rem; }
 .block-notes label { display: block; margin-bottom: .55rem; color: #34463a; font-size: .78rem; font-weight: 800; }
 .block-notes textarea { display: block; width: 100%; resize: vertical; padding: .75rem .85rem; border: 1px solid #cbd5c9; border-radius: .6rem; color: #263329; background: #fff; font: inherit; line-height: 1.45; }

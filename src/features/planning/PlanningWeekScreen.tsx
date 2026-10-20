@@ -20,18 +20,24 @@ const DETAIL_LABELS: Record<string, string> = {
   durationSeconds: "Duración",
 };
 
-const BLOCK_STATUS_OPTIONS: Array<{ value: BlockExecutionStatus; label: string }> = [
-  { value: "draft", label: "Sin registrar" },
+const BLOCK_STATUS_OPTIONS: Array<{
+  value: Exclude<BlockExecutionStatus, "draft" | "completed_without_metric">;
+  label: string;
+}> = [
   { value: "completed", label: "Realizado" },
-  { value: "completed_without_metric", label: "Sin métricas" },
   { value: "partial", label: "Parcial" },
   { value: "skipped", label: "Omitido" },
   { value: "abandoned", label: "Abandonado" },
 ];
 
-const BLOCK_STATUS_LABELS = Object.fromEntries(
-  BLOCK_STATUS_OPTIONS.map((option) => [option.value, option.label]),
-) as Record<BlockExecutionStatus, string>;
+const BLOCK_STATUS_LABELS: Record<BlockExecutionStatus, string> = {
+  draft: "Sin registrar",
+  completed: "Realizado",
+  completed_without_metric: "Realizado sin métricas",
+  partial: "Parcial",
+  skipped: "Omitido",
+  abandoned: "Abandonado",
+};
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds} s`;
@@ -139,21 +145,47 @@ function BlockAccordion({
               <>
                 <fieldset className="block-status-fieldset">
                   <legend>Estado del bloque</legend>
+                  <p className="block-status-current" aria-live="polite">
+                    <span className={`block-status-badge block-status-${executionBlock.status}`}>
+                      {BLOCK_STATUS_LABELS[executionBlock.status]}
+                    </span>
+                  </p>
                   <div className="block-status-options">
-                    {BLOCK_STATUS_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={`block-status-option block-status-${option.value}${
-                          executionBlock.status === option.value ? " block-status-option-active" : ""
-                        }`}
-                        aria-pressed={executionBlock.status === option.value}
-                        onClick={() => changeExecutionBlock({ status: option.value })}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
+                    {BLOCK_STATUS_OPTIONS.map((option) => {
+                      const active =
+                        option.value === "completed"
+                          ? executionBlock.status === "completed" ||
+                            executionBlock.status === "completed_without_metric"
+                          : executionBlock.status === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`block-status-option block-status-${option.value}${
+                            active ? " block-status-option-active" : ""
+                          }`}
+                          aria-pressed={active}
+                          onClick={() =>
+                            changeExecutionBlock({ status: active ? "draft" : option.value })
+                          }
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
                   </div>
+                  <label className="block-metrics-check">
+                    <input
+                      type="checkbox"
+                      checked={executionBlock.status === "completed_without_metric"}
+                      onChange={(event) =>
+                        changeExecutionBlock({
+                          status: event.target.checked ? "completed_without_metric" : "completed",
+                        })
+                      }
+                    />
+                    <span>Realizado sin métricas</span>
+                  </label>
                 </fieldset>
                 <div className="block-notes">
                   <label htmlFor={`block-notes-${block.id}`}>Mis notas para este bloque</label>

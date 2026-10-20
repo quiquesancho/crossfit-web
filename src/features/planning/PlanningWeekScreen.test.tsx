@@ -227,6 +227,9 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
 
+    expect(screen.queryByRole("button", { name: "Sin registrar" })).toBeNull();
+    expect(screen.getByText("Sin registrar")).toBeDefined();
+
     const partialStatus = screen.getByRole("button", { name: "Parcial" });
     expect(partialStatus.getAttribute("aria-pressed")).toBe("false");
     fireEvent.click(partialStatus);
@@ -236,6 +239,54 @@ describe("PlanningWeekScreen", () => {
       expect.objectContaining({
         snapshot: expect.objectContaining({
           blocks: expect.arrayContaining([expect.objectContaining({ plannedBlockId: "block-id", status: "partial" })]),
+        }),
+      }),
+    );
+
+    fireEvent.click(partialStatus);
+    await waitFor(() => expect(partialStatus.getAttribute("aria-pressed")).toBe("false"));
+    expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          blocks: expect.arrayContaining([expect.objectContaining({ plannedBlockId: "block-id", status: "draft" })]),
+        }),
+      }),
+    );
+  });
+
+  it("marks a completed block as done without metrics", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+
+    const withoutMetrics = screen.getByRole("checkbox", { name: "Realizado sin métricas" });
+    expect((withoutMetrics as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(withoutMetrics);
+
+    await waitFor(() => expect((withoutMetrics as HTMLInputElement).checked).toBe(true));
+    expect(screen.getByRole("button", { name: "Realizado" }).getAttribute("aria-pressed")).toBe("true");
+    expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          blocks: expect.arrayContaining([
+            expect.objectContaining({ plannedBlockId: "block-id", status: "completed_without_metric" }),
+          ]),
+        }),
+      }),
+    );
+
+    fireEvent.click(withoutMetrics);
+    await waitFor(() => expect((withoutMetrics as HTMLInputElement).checked).toBe(false));
+    expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          blocks: expect.arrayContaining([expect.objectContaining({ plannedBlockId: "block-id", status: "completed" })]),
         }),
       }),
     );
