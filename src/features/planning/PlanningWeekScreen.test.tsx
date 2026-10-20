@@ -221,7 +221,8 @@ describe("PlanningWeekScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
     expect(screen.getByText("5")).toBeDefined();
     expect(screen.getAllByText("Carga")).toHaveLength(3);
-    expect(screen.getByText("75 % de tu 1RM")).toBeDefined();
+    expect(screen.getByText("75 %")).toBeDefined();
+    expect(screen.queryByText("75 % de tu 1RM")).toBeNull();
     expect(screen.getByText("60 kg")).toBeDefined();
     expect(screen.getByText("83 kg")).toBeDefined();
     expect(screen.getByText("Descansar 90 segundos.")).toBeDefined();
@@ -431,6 +432,8 @@ describe("PlanningWeekScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
 
     const weight = await screen.findByRole("textbox", { name: "Peso usado en Power clean" });
+    expect(weight.closest(".prescription")).not.toBeNull();
+    expect(screen.queryByText("Cargas usadas")).toBeNull();
     fireEvent.change(weight, { target: { value: "55" } });
     fireEvent.blur(weight);
 

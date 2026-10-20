@@ -80,13 +80,20 @@ function formatDetail(key: string, value: unknown): string {
   return JSON.stringify(value);
 }
 
-function loadDetail(details: Record<string, unknown>): string | null {
+function loadDetail(
+  details: Record<string, unknown>,
+  compactPercentage = false,
+): string | null {
   const parts: string[] = [];
   if (typeof details.prescribedWeightKg === "number" && Number.isFinite(details.prescribedWeightKg)) {
     parts.push(`${details.prescribedWeightKg} kg`);
   }
   if (typeof details.oneRepMaxPercentage === "number" && Number.isFinite(details.oneRepMaxPercentage)) {
-    parts.push(`${details.oneRepMaxPercentage} % de tu 1RM`);
+    parts.push(
+      compactPercentage
+        ? `${details.oneRepMaxPercentage} %`
+        : `${details.oneRepMaxPercentage} % de tu 1RM`,
+    );
   }
   if (parts.length > 0) return parts.join(" · ");
   if (typeof details.loadGuidance === "string" && details.loadGuidance.trim()) {
@@ -98,6 +105,7 @@ function loadDetail(details: Record<string, unknown>): string | null {
 function detailEntries(
   details: Record<string, unknown>,
   isFormatPrescription: boolean,
+  compactPercentage = false,
 ): DetailEntry[] {
   const hidden = new Set<string>(["format", ...LOAD_DETAIL_KEYS]);
   if (isFormatPrescription) {
@@ -112,7 +120,7 @@ function detailEntries(
       value: formatDetail(key, value),
     }));
 
-  const load = loadDetail(details);
+  const load = loadDetail(details, compactPercentage);
   if (load) {
     const repetitionsIndex = entries.findIndex((entry) => entry.key === "repetitions");
     entries.splice(repetitionsIndex >= 0 ? repetitionsIndex + 1 : 0, 0, {
@@ -215,17 +223,6 @@ function hasStructuredLoad(details: Record<string, unknown>): boolean {
     typeof details.prescribedWeightKg === "number" ||
     typeof details.oneRepMaxPercentage === "number"
   );
-}
-
-function structuredLoadLabel(details: Record<string, unknown>): string | null {
-  const parts: string[] = [];
-  if (typeof details.prescribedWeightKg === "number") {
-    parts.push(`${details.prescribedWeightKg} kg`);
-  }
-  if (typeof details.oneRepMaxPercentage === "number") {
-    parts.push(`${details.oneRepMaxPercentage} % de tu 1RM`);
-  }
-  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 function prescriptionDisplayName(item: PlannedBlock["prescriptions"][number]): string {
@@ -355,9 +352,7 @@ function BlockAccordion({
     ? workoutFormatMeta(workoutFormat.format, workoutFormat.details, block.durationSeconds)
     : [];
   const showHeaderDuration = Boolean(block.durationSeconds) && formatMeta.length === 0;
-  const loadedPrescriptions = block.prescriptions.filter((item) =>
-    hasStructuredLoad(item.details),
-  );
+  const isStrengthBlock = block.blockType.code === "strength";
   const prescriptionMetrics = executionBlock?.metrics?.prescriptions ?? [];
   const showMetrics =
     Boolean(executionBlock) &&
@@ -461,18 +456,71 @@ function BlockAccordion({
                 const entries = detailEntries(
                   item.details,
                   item.id === workoutFormat?.prescriptionId,
+                  isStrengthBlock,
                 );
                 if (!item.movement && !item.complex && entries.length === 0 && !item.notes) {
                   return null;
                 }
+                const name = prescriptionDisplayName(item);
+                const metric = prescriptionMetrics.find(
+                  (entry) => entry.plannedPrescriptionId === item.id,
+                );
+                const actualWeight = metric?.actualWeightKg;
+                const prescribedWeight =
+                  typeof item.details.prescribedWeightKg === "number"
+                    ? item.details.prescribedWeightKg
+                    : undefined;
+                const loadStatus =
+                  actualWeight !== undefined && prescribedWeight !== undefined
+                    ? actualWeight === prescribedWeight
+                      ? "RX"
+                      : "Escalado"
+                    : null;
+                const inputId = `load-${block.id}-${item.id}`;
                 return (
                   <div className="prescription" key={item.id}>
-                    {item.movement ? <strong>{item.movement.name}</strong> : null}
-                    {item.complex ? (
-                      <strong>
-                        {item.complex.name} · v{item.complex.versionNumber}
-                      </strong>
-                    ) : null}
+                    <div className="prescription-heading">
+                      {item.movement ? <strong>{item.movement.name}</strong> : null}
+                      {item.complex ? (
+                        <strong>
+                          {item.complex.name} · v{item.complex.versionNumber}
+                        </strong>
+                      ) : null}
+                      {showMetrics && hasStructuredLoad(item.details) ? (
+                        <div className="prescription-load">
+                          <label htmlFor={inputId}>Peso usado</label>
+                          <MetricNumberInput
+                            id={inputId}
+                            ariaLabel={`Peso usado en ${name}`}
+                            value={actualWeight}
+                            placeholder={
+                              prescribedWeight !== undefined ? String(prescribedWeight) : "0"
+                            }
+                            onCommit={(value) => changePrescriptionWeight(item.id, value)}
+                          />
+                          <span className="load-unit">kg</span>
+                          {loadStatus ? (
+                            <span
+                              className={`load-badge load-badge-${
+                                loadStatus === "RX" ? "rx" : "scaled"
+                              }`}
+                            >
+                              {loadStatus}
+                            </span>
+                          ) : null}
+                          {prescribedWeight !== undefined && actualWeight !== prescribedWeight ? (
+                            <button
+                              type="button"
+                              className="load-rx-button"
+                              aria-label={`Usar RX en ${name}`}
+                              onClick={() => changePrescriptionWeight(item.id, prescribedWeight)}
+                            >
+                              Usar RX
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                     {entries.length > 0 ? (
                       <dl>
                         {entries.map((entry) => (
@@ -577,72 +625,6 @@ function BlockAccordion({
                       Si empezaste otra ronda, indica solo las repeticiones completadas.
                     </p>
                     {amrapSummary ? <p className="amrap-summary">{amrapSummary}</p> : null}
-                  </div>
-                ) : null}
-                {showMetrics && loadedPrescriptions.length > 0 ? (
-                  <div className="block-loads">
-                    <p className="block-section-label">Cargas usadas</p>
-                    <div className="load-list">
-                      {loadedPrescriptions.map((item) => {
-                        const name = prescriptionDisplayName(item);
-                        const metric = prescriptionMetrics.find(
-                          (entry) => entry.plannedPrescriptionId === item.id,
-                        );
-                        const actualWeight = metric?.actualWeightKg;
-                        const prescribedWeight =
-                          typeof item.details.prescribedWeightKg === "number"
-                            ? item.details.prescribedWeightKg
-                            : undefined;
-                        const loadStatus =
-                          actualWeight !== undefined && prescribedWeight !== undefined
-                            ? actualWeight === prescribedWeight
-                              ? "RX"
-                              : "Escalado"
-                            : null;
-                        const inputId = `load-${block.id}-${item.id}`;
-                        return (
-                          <div className="load-row" key={item.id}>
-                            <div className="load-label">
-                              <label htmlFor={inputId}>{name}</label>
-                              <span>{structuredLoadLabel(item.details)}</span>
-                            </div>
-                            <div className="load-input">
-                              <MetricNumberInput
-                                id={inputId}
-                                ariaLabel={`Peso usado en ${name}`}
-                                value={actualWeight}
-                                placeholder={
-                                  prescribedWeight !== undefined ? String(prescribedWeight) : "0"
-                                }
-                                onCommit={(value) => changePrescriptionWeight(item.id, value)}
-                              />
-                              <span className="load-unit">kg</span>
-                              {loadStatus ? (
-                                <span
-                                  className={`load-badge load-badge-${
-                                    loadStatus === "RX" ? "rx" : "scaled"
-                                  }`}
-                                >
-                                  {loadStatus}
-                                </span>
-                              ) : null}
-                              {prescribedWeight !== undefined && actualWeight !== prescribedWeight ? (
-                                <button
-                                  type="button"
-                                  className="load-rx-button"
-                                  aria-label={`Usar RX en ${name}`}
-                                  onClick={() =>
-                                    changePrescriptionWeight(item.id, prescribedWeight)
-                                  }
-                                >
-                                  Usar RX
-                                </button>
-                              ) : null}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
                   </div>
                 ) : null}
                 <div className="block-notes">
