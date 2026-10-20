@@ -215,4 +215,29 @@ describe("PlanningWeekScreen", () => {
       }),
     );
   });
+
+  it("stores the selected block status in the offline draft", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+
+    const partialStatus = screen.getByRole("button", { name: "Parcial" });
+    expect(partialStatus.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(partialStatus);
+
+    await waitFor(() => expect(partialStatus.getAttribute("aria-pressed")).toBe("true"));
+    expect(saveExecutionDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          blocks: expect.arrayContaining([expect.objectContaining({ plannedBlockId: "block-id", status: "partial" })]),
+        }),
+      }),
+    );
+  });
 });

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { getOrCreateDraftForSession, saveExecutionDraft } from "../execution/drafts";
-import type { ExecutionDraft } from "../execution/types";
+import type { BlockExecutionStatus, ExecutionDraft } from "../execution/types";
 import { fetchPlanningWeek, type PlannedSession, type PlanningWeek } from "./api";
 import { currentWeekStart, formatSessionDate, formatWeekRange, shiftWeek } from "./dates";
 
@@ -20,6 +20,19 @@ const DETAIL_LABELS: Record<string, string> = {
   durationSeconds: "Duración",
 };
 
+const BLOCK_STATUS_OPTIONS: Array<{ value: BlockExecutionStatus; label: string }> = [
+  { value: "draft", label: "Sin registrar" },
+  { value: "completed", label: "Realizado" },
+  { value: "completed_without_metric", label: "Sin métricas" },
+  { value: "partial", label: "Parcial" },
+  { value: "skipped", label: "Omitido" },
+  { value: "abandoned", label: "Abandonado" },
+];
+
+const BLOCK_STATUS_LABELS = Object.fromEntries(
+  BLOCK_STATUS_OPTIONS.map((option) => [option.value, option.label]),
+) as Record<BlockExecutionStatus, string>;
+
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds} s`;
   const minutes = Math.round(seconds / 60);
@@ -33,6 +46,7 @@ function formatDetail(key: string, value: unknown): string {
 }
 
 type PlannedBlock = PlannedSession["blocks"][number];
+type ExecutionBlock = ExecutionDraft["snapshot"]["blocks"][number];
 
 function BlockAccordion({
   block,
@@ -49,14 +63,14 @@ function BlockAccordion({
 }) {
   const executionBlock = draft?.snapshot.blocks.find((item) => item.plannedBlockId === block.id);
 
-  function changeNotes(notes: string) {
+  function changeExecutionBlock(changes: Partial<ExecutionBlock>) {
     if (!draft || !executionBlock) return;
     onDraftChange({
       ...draft,
       snapshot: {
         ...draft.snapshot,
         blocks: draft.snapshot.blocks.map((item) =>
-          item.id === executionBlock.id ? { ...item, notes: notes || undefined } : item,
+          item.id === executionBlock.id ? { ...item, ...changes } : item,
         ),
       },
     });
@@ -80,6 +94,11 @@ function BlockAccordion({
         <span className="block-metrics">
           {block.durationSeconds ? <span>{formatDuration(block.durationSeconds)}</span> : null}
           {block.targetRpe ? <span>RPE {block.targetRpe}</span> : null}
+          {executionBlock && executionBlock.status !== "draft" ? (
+            <span className={`block-status-badge block-status-${executionBlock.status}`}>
+              {BLOCK_STATUS_LABELS[executionBlock.status]}
+            </span>
+          ) : null}
         </span>
         <span className="block-expand" aria-hidden="true">
           {open ? "−" : "+"}
@@ -114,18 +133,43 @@ function BlockAccordion({
             ))}
           </div>
 
-          <div className="block-notes">
-            <label htmlFor={`block-notes-${block.id}`}>Mis notas para este bloque</label>
+          <div className="block-registration">
+            <p className="block-section-label">Tu registro</p>
             {draft && executionBlock ? (
-              <textarea
-                id={`block-notes-${block.id}`}
-                value={executionBlock.notes ?? ""}
-                placeholder="Técnica, sensaciones, ajustes o cualquier detalle útil…"
-                rows={3}
-                onChange={(event) => changeNotes(event.target.value)}
-              />
+              <>
+                <fieldset className="block-status-fieldset">
+                  <legend>Estado del bloque</legend>
+                  <div className="block-status-options">
+                    {BLOCK_STATUS_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`block-status-option block-status-${option.value}${
+                          executionBlock.status === option.value ? " block-status-option-active" : ""
+                        }`}
+                        aria-pressed={executionBlock.status === option.value}
+                        onClick={() => changeExecutionBlock({ status: option.value })}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+                <div className="block-notes">
+                  <label htmlFor={`block-notes-${block.id}`}>Mis notas para este bloque</label>
+                  <textarea
+                    id={`block-notes-${block.id}`}
+                    value={executionBlock.notes ?? ""}
+                    placeholder="Técnica, sensaciones, ajustes o cualquier detalle útil…"
+                    rows={3}
+                    onChange={(event) => changeExecutionBlock({ notes: event.target.value || undefined })}
+                  />
+                </div>
+              </>
             ) : (
-              <p>Inicia el registro de la sesión para añadir notas y guardarlas sin conexión.</p>
+              <p className="block-registration-prompt">
+                Inicia el registro de la sesión para indicar el estado y añadir notas sin conexión.
+              </p>
             )}
           </div>
         </div>
