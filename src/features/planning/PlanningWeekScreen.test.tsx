@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, cleanup, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getOrCreateDraftForSession, saveExecutionDraft } from "../execution/drafts";
@@ -432,7 +432,12 @@ describe("PlanningWeekScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
 
     const weight = await screen.findByRole("textbox", { name: "Peso usado en Power clean" });
-    expect(weight.closest(".prescription")).not.toBeNull();
+    const prescription = weight.closest(".prescription");
+    const details = prescription?.querySelector("dl");
+    expect(details).not.toBeNull();
+    expect(details?.contains(weight)).toBe(true);
+    expect(within(details as HTMLElement).getByText("Repeticiones")).toBeDefined();
+    expect(within(details as HTMLElement).getByText("Carga")).toBeDefined();
     expect(screen.queryByText("Cargas usadas")).toBeNull();
     fireEvent.change(weight, { target: { value: "55" } });
     fireEvent.blur(weight);

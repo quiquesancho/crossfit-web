@@ -479,48 +479,12 @@ function BlockAccordion({
                 const inputId = `load-${block.id}-${item.id}`;
                 return (
                   <div className="prescription" key={item.id}>
-                    <div className="prescription-heading">
-                      {item.movement ? <strong>{item.movement.name}</strong> : null}
-                      {item.complex ? (
-                        <strong>
-                          {item.complex.name} · v{item.complex.versionNumber}
-                        </strong>
-                      ) : null}
-                      {showMetrics && hasStructuredLoad(item.details) ? (
-                        <div className="prescription-load">
-                          <label htmlFor={inputId}>Peso usado</label>
-                          <MetricNumberInput
-                            id={inputId}
-                            ariaLabel={`Peso usado en ${name}`}
-                            value={actualWeight}
-                            placeholder={
-                              prescribedWeight !== undefined ? String(prescribedWeight) : "0"
-                            }
-                            onCommit={(value) => changePrescriptionWeight(item.id, value)}
-                          />
-                          <span className="load-unit">kg</span>
-                          {loadStatus ? (
-                            <span
-                              className={`load-badge load-badge-${
-                                loadStatus === "RX" ? "rx" : "scaled"
-                              }`}
-                            >
-                              {loadStatus}
-                            </span>
-                          ) : null}
-                          {prescribedWeight !== undefined && actualWeight !== prescribedWeight ? (
-                            <button
-                              type="button"
-                              className="load-rx-button"
-                              aria-label={`Usar RX en ${name}`}
-                              onClick={() => changePrescriptionWeight(item.id, prescribedWeight)}
-                            >
-                              Usar RX
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
+                    {item.movement ? <strong>{item.movement.name}</strong> : null}
+                    {item.complex ? (
+                      <strong>
+                        {item.complex.name} · v{item.complex.versionNumber}
+                      </strong>
+                    ) : null}
                     {entries.length > 0 ? (
                       <dl>
                         {entries.map((entry) => (
@@ -529,6 +493,42 @@ function BlockAccordion({
                             <dd>{entry.value}</dd>
                           </div>
                         ))}
+                        {showMetrics && hasStructuredLoad(item.details) ? (
+                          <div className="prescription-load-cell">
+                            <dt>Peso usado</dt>
+                            <dd className="prescription-load">
+                              <MetricNumberInput
+                                id={inputId}
+                                ariaLabel={`Peso usado en ${name}`}
+                                value={actualWeight}
+                                placeholder={
+                                  prescribedWeight !== undefined ? String(prescribedWeight) : "0"
+                                }
+                                onCommit={(value) => changePrescriptionWeight(item.id, value)}
+                              />
+                              <span className="load-unit">kg</span>
+                              {loadStatus ? (
+                                <span
+                                  className={`load-badge load-badge-${
+                                    loadStatus === "RX" ? "rx" : "scaled"
+                                  }`}
+                                >
+                                  {loadStatus}
+                                </span>
+                              ) : null}
+                              {prescribedWeight !== undefined && actualWeight !== prescribedWeight ? (
+                                <button
+                                  type="button"
+                                  className="load-rx-button"
+                                  aria-label={`Usar RX en ${name}`}
+                                  onClick={() => changePrescriptionWeight(item.id, prescribedWeight)}
+                                >
+                                  Usar RX
+                                </button>
+                              ) : null}
+                            </dd>
+                          </div>
+                        ) : null}
                       </dl>
                     ) : null}
                     {item.notes ? <p className="prescription-note">{item.notes}</p> : null}
