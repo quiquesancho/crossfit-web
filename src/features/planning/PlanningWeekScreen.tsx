@@ -18,6 +18,7 @@ const DETAIL_LABELS: Record<string, string> = {
   loadGuidance: "Carga",
   recommendedWeightKg: "Peso recomendado",
   oneRepMaxPercentage: "% de tu 1RM",
+  fallbackOneRepMaxPercentage: "Si no puedes",
   format: "Formato",
   durationSeconds: "Duración",
 };
@@ -50,6 +51,7 @@ function formatDetail(key: string, value: unknown): string {
   if (key === "durationSeconds" && typeof value === "number") return formatDuration(value);
   if (key === "recommendedWeightKg" && typeof value === "number") return `${value} kg`;
   if (key === "oneRepMaxPercentage" && typeof value === "number") return `${value} %`;
+  if (key === "fallbackOneRepMaxPercentage" && typeof value === "number") return `${value} % de tu 1RM`;
   if (typeof value === "string" || typeof value === "number") return String(value);
   return JSON.stringify(value);
 }
@@ -204,22 +206,22 @@ function BlockAccordion({
                         </button>
                       );
                     })}
+                    {effectiveStatus === "completed" || effectiveStatus === "partial" ? (
+                      <label className="block-metrics-check">
+                        <input
+                          type="checkbox"
+                          checked={withoutMetrics}
+                          onChange={(event) =>
+                            changeExecutionBlock({
+                              status: effectiveStatus,
+                              withoutMetrics: event.target.checked,
+                            })
+                          }
+                        />
+                        <span>Sin métricas</span>
+                      </label>
+                    ) : null}
                   </div>
-                  {effectiveStatus === "completed" || effectiveStatus === "partial" ? (
-                    <label className="block-metrics-check">
-                      <input
-                        type="checkbox"
-                        checked={withoutMetrics}
-                        onChange={(event) =>
-                          changeExecutionBlock({
-                            status: effectiveStatus,
-                            withoutMetrics: event.target.checked,
-                          })
-                        }
-                      />
-                      <span>Sin métricas</span>
-                    </label>
-                  ) : null}
                 </fieldset>
                 <div className="block-notes">
                   <label htmlFor={`block-notes-${block.id}`}>Mis notas para este bloque</label>

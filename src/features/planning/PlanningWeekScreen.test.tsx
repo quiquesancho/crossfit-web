@@ -47,15 +47,34 @@ const week: PlanningWeek = {
                 sets: 5,
                 repetitions: 3,
                 durationSeconds: 720,
-                recommendedWeightKg: 60,
                 oneRepMaxPercentage: 75,
                 emptyDetail: null,
               },
               notes: "Descansar 90 segundos.",
             },
             {
-              id: "complex-prescription-id",
+              id: "back-squat-prescription-id",
               position: 2,
+              movement: { id: "back-squat-id", code: "back-squat", name: "Back squat" },
+              complex: null,
+              details: { repetitions: 10, recommendedWeightKg: 60 },
+              notes: null,
+            },
+            {
+              id: "deadlift-prescription-id",
+              position: 3,
+              movement: { id: "deadlift-id", code: "deadlift", name: "Deadlift" },
+              complex: null,
+              details: {
+                repetitions: 8,
+                recommendedWeightKg: 83,
+                fallbackOneRepMaxPercentage: 55,
+              },
+              notes: null,
+            },
+            {
+              id: "complex-prescription-id",
+              position: 4,
               movement: null,
               complex: { id: "complex-id", code: "clean-complex", name: "Complejo de clean", versionNumber: 2 },
               details: {},
@@ -126,10 +145,13 @@ describe("PlanningWeekScreen", () => {
     expect(details?.hasAttribute("open")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
     expect(screen.getByText("5")).toBeDefined();
-    expect(screen.getByText("Peso recomendado")).toBeDefined();
+    expect(screen.getAllByText("Peso recomendado")).toHaveLength(2);
     expect(screen.getByText("60 kg")).toBeDefined();
+    expect(screen.getByText("83 kg")).toBeDefined();
     expect(screen.getByText("% de tu 1RM")).toBeDefined();
     expect(screen.getByText("75 %")).toBeDefined();
+    expect(screen.getByText("Si no puedes")).toBeDefined();
+    expect(screen.getByText("55 % de tu 1RM")).toBeDefined();
     expect(screen.queryByText("emptyDetail")).toBeNull();
     expect(screen.getByText("Complejo de clean · v2")).toBeDefined();
   });
