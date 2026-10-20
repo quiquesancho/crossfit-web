@@ -20,6 +20,7 @@ export type SessionExecutionSnapshot = {
     blockTypeId: string;
     title: string;
     status: BlockExecutionStatus;
+    withoutMetrics?: boolean;
     notes?: string;
   }>;
 };

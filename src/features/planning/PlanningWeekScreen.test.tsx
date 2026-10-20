@@ -43,7 +43,13 @@ const week: PlanningWeek = {
               position: 1,
               movement: { id: "movement-id", code: "power-clean", name: "Power clean" },
               complex: null,
-              details: { sets: 5, repetitions: 3, durationSeconds: 720 },
+              details: {
+                sets: 5,
+                repetitions: 3,
+                durationSeconds: 720,
+                recommendedWeightKg: 60,
+                oneRepMaxPercentage: 75,
+              },
               notes: "Descansar 90 segundos.",
             },
             {
@@ -119,6 +125,10 @@ describe("PlanningWeekScreen", () => {
     expect(details?.hasAttribute("open")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
     expect(screen.getByText("5")).toBeDefined();
+    expect(screen.getByText("Peso recomendado")).toBeDefined();
+    expect(screen.getByText("60 kg")).toBeDefined();
+    expect(screen.getByText("% de tu 1RM")).toBeDefined();
+    expect(screen.getByText("75 %")).toBeDefined();
     expect(screen.getByText("Complejo de clean · v2")).toBeDefined();
   });
 
@@ -264,18 +274,21 @@ describe("PlanningWeekScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+    expect(screen.queryByRole("checkbox", { name: "Sin métricas" })).toBeNull();
 
-    const withoutMetrics = screen.getByRole("checkbox", { name: "Realizado sin métricas" });
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+    const withoutMetrics = await screen.findByRole("checkbox", { name: "Sin métricas" });
     expect((withoutMetrics as HTMLInputElement).checked).toBe(false);
     fireEvent.click(withoutMetrics);
 
     await waitFor(() => expect((withoutMetrics as HTMLInputElement).checked).toBe(true));
     expect(screen.getByRole("button", { name: "Realizado" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getAllByText("Realizado sin métricas").length).toBeGreaterThan(0);
     expect(saveExecutionDraft).toHaveBeenLastCalledWith(
       expect.objectContaining({
         snapshot: expect.objectContaining({
           blocks: expect.arrayContaining([
-            expect.objectContaining({ plannedBlockId: "block-id", status: "completed_without_metric" }),
+            expect.objectContaining({ plannedBlockId: "block-id", status: "completed", withoutMetrics: true }),
           ]),
         }),
       }),
@@ -287,6 +300,55 @@ describe("PlanningWeekScreen", () => {
       expect.objectContaining({
         snapshot: expect.objectContaining({
           blocks: expect.arrayContaining([expect.objectContaining({ plannedBlockId: "block-id", status: "completed" })]),
+        }),
+      }),
+    );
+  });
+
+  it("marks a partial block as done without metrics", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Parcial" }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Sin métricas" }));
+
+    expect(screen.getAllByText("Parcial sin métricas").length).toBeGreaterThan(0);
+    expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          blocks: expect.arrayContaining([
+            expect.objectContaining({ plannedBlockId: "block-id", status: "partial", withoutMetrics: true }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("does not offer metrics controls for a skipped block", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Omitido" }));
+    expect(screen.queryByRole("checkbox", { name: "Sin métricas" })).toBeNull();
+    expect(screen.getAllByText("Omitido").length).toBeGreaterThan(0);
+    expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          blocks: expect.arrayContaining([expect.objectContaining({ plannedBlockId: "block-id", status: "skipped" })]),
         }),
       }),
     );

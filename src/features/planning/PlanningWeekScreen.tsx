@@ -16,18 +16,19 @@ const DETAIL_LABELS: Record<string, string> = {
   repetitions: "Repeticiones",
   rounds: "Rondas",
   loadGuidance: "Carga",
+  recommendedWeightKg: "Peso recomendado",
+  oneRepMaxPercentage: "% de tu 1RM",
   format: "Formato",
   durationSeconds: "Duración",
 };
 
 const BLOCK_STATUS_OPTIONS: Array<{
-  value: Exclude<BlockExecutionStatus, "draft" | "completed_without_metric">;
+  value: Exclude<BlockExecutionStatus, "draft" | "completed_without_metric" | "abandoned">;
   label: string;
 }> = [
   { value: "completed", label: "Realizado" },
   { value: "partial", label: "Parcial" },
   { value: "skipped", label: "Omitido" },
-  { value: "abandoned", label: "Abandonado" },
 ];
 
 const BLOCK_STATUS_LABELS: Record<BlockExecutionStatus, string> = {
@@ -47,12 +48,30 @@ function formatDuration(seconds: number): string {
 
 function formatDetail(key: string, value: unknown): string {
   if (key === "durationSeconds" && typeof value === "number") return formatDuration(value);
+  if (key === "recommendedWeightKg" && typeof value === "number") return `${value} kg`;
+  if (key === "oneRepMaxPercentage" && typeof value === "number") return `${value} %`;
   if (typeof value === "string" || typeof value === "number") return String(value);
   return JSON.stringify(value);
 }
 
 type PlannedBlock = PlannedSession["blocks"][number];
 type ExecutionBlock = ExecutionDraft["snapshot"]["blocks"][number];
+
+function effectiveBlockStatus(block: ExecutionBlock): ExecutionBlock["status"] {
+  return block.status === "completed_without_metric" ? "completed" : block.status;
+}
+
+function hasNoMetrics(block: ExecutionBlock): boolean {
+  return block.withoutMetrics ?? block.status === "completed_without_metric";
+}
+
+function blockStatusLabel(block: ExecutionBlock): string {
+  const status = effectiveBlockStatus(block);
+  if (hasNoMetrics(block) && (status === "completed" || status === "partial")) {
+    return `${BLOCK_STATUS_LABELS[status]} sin métricas`;
+  }
+  return BLOCK_STATUS_LABELS[status];
+}
 
 function BlockAccordion({
   block,
@@ -68,6 +87,8 @@ function BlockAccordion({
   onDraftChange: (draft: ExecutionDraft) => void;
 }) {
   const executionBlock = draft?.snapshot.blocks.find((item) => item.plannedBlockId === block.id);
+  const effectiveStatus = executionBlock ? effectiveBlockStatus(executionBlock) : null;
+  const withoutMetrics = executionBlock ? hasNoMetrics(executionBlock) : false;
 
   function changeExecutionBlock(changes: Partial<ExecutionBlock>) {
     if (!draft || !executionBlock) return;
@@ -100,9 +121,9 @@ function BlockAccordion({
         <span className="block-metrics">
           {block.durationSeconds ? <span>{formatDuration(block.durationSeconds)}</span> : null}
           {block.targetRpe ? <span>RPE {block.targetRpe}</span> : null}
-          {executionBlock && executionBlock.status !== "draft" ? (
-            <span className={`block-status-badge block-status-${executionBlock.status}`}>
-              {BLOCK_STATUS_LABELS[executionBlock.status]}
+          {executionBlock && effectiveStatus !== "draft" ? (
+            <span className={`block-status-badge block-status-${effectiveStatus}`}>
+              {blockStatusLabel(executionBlock)}
             </span>
           ) : null}
         </span>
@@ -146,17 +167,13 @@ function BlockAccordion({
                 <fieldset className="block-status-fieldset">
                   <legend>Estado del bloque</legend>
                   <p className="block-status-current" aria-live="polite">
-                    <span className={`block-status-badge block-status-${executionBlock.status}`}>
-                      {BLOCK_STATUS_LABELS[executionBlock.status]}
+                    <span className={`block-status-badge block-status-${effectiveStatus ?? "draft"}`}>
+                      {executionBlock ? blockStatusLabel(executionBlock) : BLOCK_STATUS_LABELS.draft}
                     </span>
                   </p>
                   <div className="block-status-options">
                     {BLOCK_STATUS_OPTIONS.map((option) => {
-                      const active =
-                        option.value === "completed"
-                          ? executionBlock.status === "completed" ||
-                            executionBlock.status === "completed_without_metric"
-                          : executionBlock.status === option.value;
+                      const active = effectiveStatus === option.value;
                       return (
                         <button
                           key={option.value}
@@ -166,7 +183,15 @@ function BlockAccordion({
                           }`}
                           aria-pressed={active}
                           onClick={() =>
-                            changeExecutionBlock({ status: active ? "draft" : option.value })
+                            changeExecutionBlock(
+                              active
+                                ? { status: "draft", withoutMetrics: undefined }
+                                : {
+                                    status: option.value,
+                                    withoutMetrics:
+                                      option.value === "skipped" ? undefined : withoutMetrics,
+                                  },
+                            )
                           }
                         >
                           {option.label}
@@ -174,18 +199,16 @@ function BlockAccordion({
                       );
                     })}
                   </div>
-                  <label className="block-metrics-check">
-                    <input
-                      type="checkbox"
-                      checked={executionBlock.status === "completed_without_metric"}
-                      onChange={(event) =>
-                        changeExecutionBlock({
-                          status: event.target.checked ? "completed_without_metric" : "completed",
-                        })
-                      }
-                    />
-                    <span>Realizado sin métricas</span>
-                  </label>
+                  {effectiveStatus === "completed" || effectiveStatus === "partial" ? (
+                    <label className="block-metrics-check">
+                      <input
+                        type="checkbox"
+                        checked={withoutMetrics}
+                        onChange={(event) => changeExecutionBlock({ withoutMetrics: event.target.checked })}
+                      />
+                      <span>Sin métricas</span>
+                    </label>
+                  ) : null}
                 </fieldset>
                 <div className="block-notes">
                   <label htmlFor={`block-notes-${block.id}`}>Mis notas para este bloque</label>
