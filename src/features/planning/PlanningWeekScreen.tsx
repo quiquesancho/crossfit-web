@@ -54,6 +54,12 @@ function formatDetail(key: string, value: unknown): string {
   return JSON.stringify(value);
 }
 
+function visibleDetails(details: Record<string, unknown>): Array<[string, unknown]> {
+  return Object.entries(details).filter(
+    ([, value]) => value !== null && value !== undefined && value !== "",
+  );
+}
+
 type PlannedBlock = PlannedSession["blocks"][number];
 type ExecutionBlock = ExecutionDraft["snapshot"]["blocks"][number];
 
@@ -147,7 +153,7 @@ function BlockAccordion({
                 ) : null}
                 {Object.keys(item.details).length > 0 ? (
                   <dl>
-                    {Object.entries(item.details).map(([key, value]) => (
+                    {visibleDetails(item.details).map(([key, value]) => (
                       <div key={key}>
                         <dt>{DETAIL_LABELS[key] ?? key}</dt>
                         <dd>{formatDetail(key, value)}</dd>

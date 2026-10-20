@@ -49,6 +49,7 @@ const week: PlanningWeek = {
                 durationSeconds: 720,
                 recommendedWeightKg: 60,
                 oneRepMaxPercentage: 75,
+                emptyDetail: null,
               },
               notes: "Descansar 90 segundos.",
             },
@@ -129,6 +130,7 @@ describe("PlanningWeekScreen", () => {
     expect(screen.getByText("60 kg")).toBeDefined();
     expect(screen.getByText("% de tu 1RM")).toBeDefined();
     expect(screen.getByText("75 %")).toBeDefined();
+    expect(screen.queryByText("emptyDetail")).toBeNull();
     expect(screen.getByText("Complejo de clean · v2")).toBeDefined();
   });
 
