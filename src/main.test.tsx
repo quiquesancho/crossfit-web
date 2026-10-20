@@ -3,10 +3,11 @@ import { renderToString } from "react-dom/server";
 import { App } from "./app/App";
 
 describe("PWA bootstrap", () => {
-  it("renders the application heading and the catalog screen", () => {
+  it("renders the application heading and weekly planning screen", () => {
     const markup = renderToString(<App />);
 
     expect(markup).toContain("CrossFit");
+    expect(markup).toContain("Planificación");
     expect(markup).toContain("Cargando");
   });
 });
