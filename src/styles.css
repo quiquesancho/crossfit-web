@@ -118,6 +118,35 @@ button { font: inherit; }
 .block-notes textarea { display: block; width: 100%; resize: vertical; padding: .75rem .85rem; border: 1px solid #cbd5c9; border-radius: .6rem; color: #263329; background: #fff; font: inherit; line-height: 1.45; }
 .block-notes textarea:focus { border-color: #64806a; outline: 3px solid #dce8dc; }
 .block-notes textarea::placeholder { color: #929c93; }
+.block-amrap-result, .block-loads { margin-top: 1rem; }
+.block-amrap-result .block-section-label, .block-loads .block-section-label { margin-bottom: .55rem; }
+.amrap-fields { display: flex; gap: .75rem; flex-wrap: wrap; }
+.amrap-field { display: grid; gap: .35rem; }
+.amrap-field label { color: #34463a; font-size: .78rem; font-weight: 800; }
+.amrap-field input, .load-input input { width: 6.2rem; padding: .48rem .55rem; border: 1px solid #cbd5c9; border-radius: .5rem; color: #263329; background: #fff; font: inherit; font-size: .88rem; }
+.amrap-field input:focus, .load-input input:focus { border-color: #64806a; outline: 3px solid #dce8dc; }
+.amrap-hint { margin: .5rem 0 0; color: #737e74; font-size: .74rem; line-height: 1.4; }
+.amrap-summary { margin: .55rem 0 0; color: #365a3d; font-size: .9rem; font-weight: 850; }
+.load-list { display: grid; gap: .55rem; }
+.load-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .65rem .75rem; border: 1px solid #dce3d9; border-radius: .6rem; background: #fff; }
+.load-label { display: grid; gap: .15rem; min-width: 0; }
+.load-label label { color: #34463a; font-size: .82rem; font-weight: 800; }
+.load-label span { color: #69756b; font-size: .74rem; }
+.load-input { display: flex; align-items: center; gap: .35rem; flex: none; }
+.load-unit { color: #69756b; font-size: .75rem; font-weight: 700; }
+.load-badge { padding: .2rem .45rem; border-radius: 999px; font-size: .66rem; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+.load-badge-rx { color: #2f6840; background: #e0eee2; }
+.load-badge-scaled { color: #89601f; background: #f5ead5; }
+.load-rx-button { padding: .3rem .5rem; border: 1px solid #cbd5c9; border-radius: .45rem; color: #365a3d; background: #f4f7f2; cursor: pointer; font-size: .72rem; font-weight: 750; }
+.load-rx-button:hover { background: #e7efe5; }
+.load-rx-button:focus-visible { outline: 3px solid #c7d9c9; outline-offset: 1px; }
+@media (max-width: 560px) {
+  .load-row { align-items: stretch; flex-direction: column; }
+  .load-input { flex-wrap: wrap; }
+  .load-input input { width: 5.5rem; }
+  .amrap-fields { flex-direction: column; }
+  .amrap-field input { width: 100%; max-width: 9rem; }
+}
 .block-registration-prompt { margin: 0; color: #737e74; font-size: .82rem; }
 
 @media (max-width: 680px) {

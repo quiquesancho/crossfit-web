@@ -418,6 +418,129 @@ describe("PlanningWeekScreen", () => {
     );
   });
 
+  it("stores the actual weight used for a percentage-based prescription", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+
+    const weight = await screen.findByRole("textbox", { name: "Peso usado en Power clean" });
+    fireEvent.change(weight, { target: { value: "55" } });
+    fireEvent.blur(weight);
+
+    await waitFor(() =>
+      expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          snapshot: expect.objectContaining({
+            blocks: expect.arrayContaining([
+              expect.objectContaining({
+                plannedBlockId: "block-id",
+                metrics: expect.objectContaining({
+                  prescriptions: expect.arrayContaining([
+                    expect.objectContaining({
+                      plannedPrescriptionId: "prescription-id",
+                      actualWeightKg: 55,
+                    }),
+                  ]),
+                }),
+              }),
+            ]),
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("marks an RX weight and a scaled weight", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+
+    const backSquat = await screen.findByRole("textbox", { name: "Peso usado en Back squat" });
+    fireEvent.change(backSquat, { target: { value: "60" } });
+    fireEvent.blur(backSquat);
+    await waitFor(() => expect(screen.getByText("RX")).toBeDefined());
+
+    fireEvent.change(backSquat, { target: { value: "50" } });
+    fireEvent.blur(backSquat);
+    await waitFor(() => expect(screen.getByText("Escalado")).toBeDefined());
+
+    fireEvent.click(screen.getByRole("button", { name: "Usar RX en Back squat" }));
+    await waitFor(() => expect((backSquat as HTMLInputElement).value).toBe("60"));
+    expect(screen.getByText("RX")).toBeDefined();
+  });
+
+  it("stores AMRAP rounds and repetitions from the current round", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "WOD: AMRAP 12 minutos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+
+    const rounds = await screen.findByRole("textbox", { name: "Rondas completadas" });
+    const extraRepetitions = screen.getByRole("textbox", {
+      name: "Repeticiones de la ronda en curso",
+    });
+    fireEvent.change(rounds, { target: { value: "5" } });
+    fireEvent.blur(rounds);
+    fireEvent.change(extraRepetitions, { target: { value: "12" } });
+    fireEvent.blur(extraRepetitions);
+
+    await waitFor(() => expect(screen.getByText("5 rondas + 12 repeticiones")).toBeDefined());
+    expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          blocks: expect.arrayContaining([
+            expect.objectContaining({
+              plannedBlockId: "wod-block-id",
+              metrics: expect.objectContaining({ rounds: 5, extraRepetitions: 12 }),
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("hides load and AMRAP fields when the block is marked without metrics", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+    expect(
+      await screen.findByRole("textbox", { name: "Peso usado en Power clean" }),
+    ).toBeDefined();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Sin métricas" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("textbox", { name: "Peso usado en Power clean" })).toBeNull(),
+    );
+  });
+
   it("marks a completed block as done without metrics", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());

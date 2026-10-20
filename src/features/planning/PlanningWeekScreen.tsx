@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { getOrCreateDraftForSession, saveExecutionDraft } from "../execution/drafts";
-import type { BlockExecutionStatus, ExecutionDraft } from "../execution/types";
+import type { BlockExecutionMetrics, BlockExecutionStatus, ExecutionDraft } from "../execution/types";
 import { fetchPlanningWeek, type PlannedSession, type PlanningWeek } from "./api";
 import { currentWeekStart, formatSessionDate, formatWeekRange, shiftWeek } from "./dates";
 
@@ -210,6 +210,111 @@ function isFormatOnlyPrescription(item: PlannedBlock["prescriptions"][number]): 
   return keys.length > 0 && keys.every((key) => FORMAT_DETAIL_KEYS.has(key));
 }
 
+function hasStructuredLoad(details: Record<string, unknown>): boolean {
+  return (
+    typeof details.prescribedWeightKg === "number" ||
+    typeof details.oneRepMaxPercentage === "number"
+  );
+}
+
+function structuredLoadLabel(details: Record<string, unknown>): string | null {
+  const parts: string[] = [];
+  if (typeof details.prescribedWeightKg === "number") {
+    parts.push(`${details.prescribedWeightKg} kg`);
+  }
+  if (typeof details.oneRepMaxPercentage === "number") {
+    parts.push(`${details.oneRepMaxPercentage} % de tu 1RM`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+function prescriptionDisplayName(item: PlannedBlock["prescriptions"][number]): string {
+  if (item.movement) return item.movement.name;
+  if (item.complex) return `${item.complex.name} · v${item.complex.versionNumber}`;
+  return "Ejercicio";
+}
+
+function cleanMetrics(metrics: BlockExecutionMetrics): BlockExecutionMetrics | undefined {
+  const next: BlockExecutionMetrics = {};
+  if (metrics.rounds !== undefined) next.rounds = metrics.rounds;
+  if (metrics.extraRepetitions !== undefined) next.extraRepetitions = metrics.extraRepetitions;
+  const prescriptions = metrics.prescriptions?.filter(
+    (item) => item.actualWeightKg !== undefined,
+  );
+  if (prescriptions && prescriptions.length > 0) next.prescriptions = prescriptions;
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function amrapResultSummary(metrics: BlockExecutionMetrics | undefined): string | null {
+  if (!metrics || (metrics.rounds === undefined && metrics.extraRepetitions === undefined)) {
+    return null;
+  }
+  const parts: string[] = [];
+  if (metrics.rounds !== undefined) {
+    parts.push(`${metrics.rounds} ${metrics.rounds === 1 ? "ronda" : "rondas"}`);
+  }
+  if (metrics.extraRepetitions !== undefined && metrics.extraRepetitions > 0) {
+    parts.push(
+      `${metrics.extraRepetitions} ${
+        metrics.extraRepetitions === 1 ? "repetición" : "repeticiones"
+      }`,
+    );
+  }
+  return parts.length > 0 ? parts.join(" + ") : null;
+}
+
+function MetricNumberInput({
+  id,
+  ariaLabel,
+  value,
+  placeholder,
+  integer = false,
+  onCommit,
+}: {
+  id: string;
+  ariaLabel: string;
+  value: number | undefined;
+  placeholder?: string;
+  integer?: boolean;
+  onCommit: (value: number | undefined) => void;
+}) {
+  const [text, setText] = useState(value === undefined ? "" : String(value));
+
+  useEffect(() => {
+    setText(value === undefined ? "" : String(value));
+  }, [value]);
+
+  function commit() {
+    const trimmed = text.trim();
+    if (trimmed === "") {
+      onCommit(undefined);
+      return;
+    }
+    const parsed = Number(trimmed.replace(",", "."));
+    if (!Number.isFinite(parsed) || parsed < 0 || (integer && !Number.isInteger(parsed))) {
+      setText(value === undefined ? "" : String(value));
+      return;
+    }
+    onCommit(parsed);
+  }
+
+  return (
+    <input
+      id={id}
+      type="text"
+      inputMode={integer ? "numeric" : "decimal"}
+      aria-label={ariaLabel}
+      value={text}
+      placeholder={placeholder}
+      onChange={(event) => setText(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+      }}
+    />
+  );
+}
+
 type PlannedBlock = PlannedSession["blocks"][number];
 type ExecutionBlock = ExecutionDraft["snapshot"]["blocks"][number];
 
@@ -250,6 +355,16 @@ function BlockAccordion({
     ? workoutFormatMeta(workoutFormat.format, workoutFormat.details, block.durationSeconds)
     : [];
   const showHeaderDuration = Boolean(block.durationSeconds) && formatMeta.length === 0;
+  const loadedPrescriptions = block.prescriptions.filter((item) =>
+    hasStructuredLoad(item.details),
+  );
+  const prescriptionMetrics = executionBlock?.metrics?.prescriptions ?? [];
+  const showMetrics =
+    Boolean(executionBlock) &&
+    (effectiveStatus === "completed" || effectiveStatus === "partial") &&
+    !withoutMetrics;
+  const isAmrap = workoutFormat?.format === "amrap";
+  const amrapSummary = executionBlock ? amrapResultSummary(executionBlock.metrics) : null;
 
   function changeExecutionBlock(changes: Partial<ExecutionBlock>) {
     if (!draft || !executionBlock) return;
@@ -261,6 +376,34 @@ function BlockAccordion({
           item.id === executionBlock.id ? { ...item, ...changes } : item,
         ),
       },
+    });
+  }
+
+  function changePrescriptionWeight(
+    plannedPrescriptionId: string,
+    actualWeightKg: number | undefined,
+  ) {
+    if (!executionBlock) return;
+    const current = executionBlock.metrics?.prescriptions ?? [];
+    const prescriptions =
+      actualWeightKg === undefined
+        ? current.filter((item) => item.plannedPrescriptionId !== plannedPrescriptionId)
+        : [
+            ...current.filter((item) => item.plannedPrescriptionId !== plannedPrescriptionId),
+            { plannedPrescriptionId, actualWeightKg },
+          ];
+    changeExecutionBlock({
+      metrics: cleanMetrics({ ...executionBlock.metrics, prescriptions }),
+    });
+  }
+
+  function changeAmrapMetric(
+    key: "rounds" | "extraRepetitions",
+    value: number | undefined,
+  ) {
+    if (!executionBlock) return;
+    changeExecutionBlock({
+      metrics: cleanMetrics({ ...executionBlock.metrics, [key]: value }),
     });
   }
 
@@ -401,6 +544,107 @@ function BlockAccordion({
                     ) : null}
                   </div>
                 </fieldset>
+                {showMetrics && isAmrap ? (
+                  <div className="block-amrap-result">
+                    <p className="block-section-label">Resultado del AMRAP</p>
+                    <div className="amrap-fields">
+                      <div className="amrap-field">
+                        <label htmlFor={`amrap-rounds-${block.id}`}>Rondas completadas</label>
+                        <MetricNumberInput
+                          id={`amrap-rounds-${block.id}`}
+                          ariaLabel="Rondas completadas"
+                          value={executionBlock.metrics?.rounds}
+                          placeholder="0"
+                          integer
+                          onCommit={(value) => changeAmrapMetric("rounds", value)}
+                        />
+                      </div>
+                      <div className="amrap-field">
+                        <label htmlFor={`amrap-extra-${block.id}`}>
+                          Repeticiones de la ronda en curso
+                        </label>
+                        <MetricNumberInput
+                          id={`amrap-extra-${block.id}`}
+                          ariaLabel="Repeticiones de la ronda en curso"
+                          value={executionBlock.metrics?.extraRepetitions}
+                          placeholder="0"
+                          integer
+                          onCommit={(value) => changeAmrapMetric("extraRepetitions", value)}
+                        />
+                      </div>
+                    </div>
+                    <p className="amrap-hint">
+                      Si empezaste otra ronda, indica solo las repeticiones completadas.
+                    </p>
+                    {amrapSummary ? <p className="amrap-summary">{amrapSummary}</p> : null}
+                  </div>
+                ) : null}
+                {showMetrics && loadedPrescriptions.length > 0 ? (
+                  <div className="block-loads">
+                    <p className="block-section-label">Cargas usadas</p>
+                    <div className="load-list">
+                      {loadedPrescriptions.map((item) => {
+                        const name = prescriptionDisplayName(item);
+                        const metric = prescriptionMetrics.find(
+                          (entry) => entry.plannedPrescriptionId === item.id,
+                        );
+                        const actualWeight = metric?.actualWeightKg;
+                        const prescribedWeight =
+                          typeof item.details.prescribedWeightKg === "number"
+                            ? item.details.prescribedWeightKg
+                            : undefined;
+                        const loadStatus =
+                          actualWeight !== undefined && prescribedWeight !== undefined
+                            ? actualWeight === prescribedWeight
+                              ? "RX"
+                              : "Escalado"
+                            : null;
+                        const inputId = `load-${block.id}-${item.id}`;
+                        return (
+                          <div className="load-row" key={item.id}>
+                            <div className="load-label">
+                              <label htmlFor={inputId}>{name}</label>
+                              <span>{structuredLoadLabel(item.details)}</span>
+                            </div>
+                            <div className="load-input">
+                              <MetricNumberInput
+                                id={inputId}
+                                ariaLabel={`Peso usado en ${name}`}
+                                value={actualWeight}
+                                placeholder={
+                                  prescribedWeight !== undefined ? String(prescribedWeight) : "0"
+                                }
+                                onCommit={(value) => changePrescriptionWeight(item.id, value)}
+                              />
+                              <span className="load-unit">kg</span>
+                              {loadStatus ? (
+                                <span
+                                  className={`load-badge load-badge-${
+                                    loadStatus === "RX" ? "rx" : "scaled"
+                                  }`}
+                                >
+                                  {loadStatus}
+                                </span>
+                              ) : null}
+                              {prescribedWeight !== undefined && actualWeight !== prescribedWeight ? (
+                                <button
+                                  type="button"
+                                  className="load-rx-button"
+                                  aria-label={`Usar RX en ${name}`}
+                                  onClick={() =>
+                                    changePrescriptionWeight(item.id, prescribedWeight)
+                                  }
+                                >
+                                  Usar RX
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="block-notes">
                   <label htmlFor={`block-notes-${block.id}`}>Mis notas para este bloque</label>
                   <textarea
