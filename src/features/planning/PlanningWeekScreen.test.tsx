@@ -593,6 +593,51 @@ describe("PlanningWeekScreen", () => {
     );
   });
 
+  it("selects the load status from the switch labels", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+
+    const backSquat = await screen.findByRole("textbox", { name: "Peso usado en Back squat" });
+    const card = backSquat.closest(".prescription") as HTMLElement;
+    const loadSwitch = within(card).getByRole("switch", {
+      name: "Tipo de carga en Back squat",
+    });
+
+    fireEvent.click(within(card).getByText("Escalado"));
+    await waitFor(() => expect((loadSwitch as HTMLInputElement).checked).toBe(true));
+    expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          blocks: expect.arrayContaining([
+            expect.objectContaining({
+              plannedBlockId: "block-id",
+              metrics: expect.objectContaining({
+                prescriptions: expect.arrayContaining([
+                  expect.objectContaining({
+                    plannedPrescriptionId: "back-squat-prescription-id",
+                    loadStatus: "scaled",
+                  }),
+                ]),
+              }),
+            }),
+          ]),
+        }),
+      }),
+    );
+
+    fireEvent.click(within(card).getByText("RX"));
+    await waitFor(() => expect((loadSwitch as HTMLInputElement).checked).toBe(false));
+    expect((backSquat as HTMLInputElement).value).toBe("60");
+  });
+
   it("stores AMRAP rounds and repetitions from the current round", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());

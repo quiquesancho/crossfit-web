@@ -680,6 +680,15 @@ function BlockAccordion({
                                   className={`load-switch-label${
                                     loadStatus === "rx" ? " load-switch-label-rx-active" : ""
                                   }`}
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    changePrescriptionLoadStatus(
+                                      item.id,
+                                      "rx",
+                                      prescribed,
+                                      actualWeight,
+                                    );
+                                  }}
                                 >
                                   RX
                                 </span>
@@ -702,6 +711,15 @@ function BlockAccordion({
                                   className={`load-switch-label${
                                     loadStatus === "scaled" ? " load-switch-label-scaled-active" : ""
                                   }`}
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    changePrescriptionLoadStatus(
+                                      item.id,
+                                      "scaled",
+                                      prescribed,
+                                      actualWeight,
+                                    );
+                                  }}
                                 >
                                   Escalado
                                 </span>
