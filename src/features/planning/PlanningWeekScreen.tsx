@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { fetchPlanningWeek, type PlanningWeek } from "./api";
+import { getOrCreateDraftForSession } from "../execution/drafts";
+import { fetchPlanningWeek, type PlannedSession, type PlanningWeek } from "./api";
 import { currentWeekStart, formatSessionDate, formatWeekRange, shiftWeek } from "./dates";
 
 type State =
@@ -30,7 +31,19 @@ function formatDetail(key: string, value: unknown): string {
   return JSON.stringify(value);
 }
 
-function SessionCard({ session }: { session: PlanningWeek["sessions"][number] }) {
+function SessionCard({ session }: { session: PlannedSession }) {
+  const [draftState, setDraftState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  async function startExecution() {
+    setDraftState("saving");
+    try {
+      await getOrCreateDraftForSession(session);
+      setDraftState("saved");
+    } catch {
+      setDraftState("error");
+    }
+  }
+
   return (
     <details className="session-card">
       <summary className="session-heading">
@@ -45,6 +58,21 @@ function SessionCard({ session }: { session: PlanningWeek["sessions"][number] })
       </summary>
       <div className="session-detail">
         {session.objective ? <p className="session-objective">{session.objective}</p> : null}
+
+        <div className="execution-action">
+          <div>
+            <strong>Registro del entrenamiento</strong>
+            <p>Prepara un borrador local que podrás completar incluso sin conexión.</p>
+          </div>
+          <button disabled={draftState === "saving" || draftState === "saved"} onClick={startExecution}>
+            {draftState === "saving"
+              ? "Guardando…"
+              : draftState === "saved"
+                ? "Borrador preparado"
+                : "Registrar sesión"}
+          </button>
+          {draftState === "error" ? <p role="alert">No se pudo crear el borrador local.</p> : null}
+        </div>
 
         <div className="block-list">
           {session.blocks.map((block) => (
