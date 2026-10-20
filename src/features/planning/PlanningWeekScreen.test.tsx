@@ -57,7 +57,7 @@ const week: PlanningWeek = {
               position: 2,
               movement: { id: "back-squat-id", code: "back-squat", name: "Back squat" },
               complex: null,
-              details: { repetitions: 10, recommendedWeightKg: 60 },
+              details: { repetitions: 10, prescribedWeightKg: 60 },
               notes: null,
             },
             {
@@ -67,10 +67,9 @@ const week: PlanningWeek = {
               complex: null,
               details: {
                 repetitions: 8,
-                recommendedWeightKg: 83,
-                fallbackOneRepMaxPercentage: 55,
+                prescribedWeightKg: 83,
               },
-              notes: null,
+              notes: "Si no puedes con 83 kg, usa tu 55 % de 1RM.",
             },
             {
               id: "complex-prescription-id",
@@ -145,13 +144,13 @@ describe("PlanningWeekScreen", () => {
     expect(details?.hasAttribute("open")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
     expect(screen.getByText("5")).toBeDefined();
-    expect(screen.getAllByText("Peso recomendado")).toHaveLength(2);
+    expect(screen.getAllByText("Peso del entrenamiento")).toHaveLength(2);
     expect(screen.getByText("60 kg")).toBeDefined();
     expect(screen.getByText("83 kg")).toBeDefined();
     expect(screen.getByText("% de tu 1RM")).toBeDefined();
     expect(screen.getByText("75 %")).toBeDefined();
-    expect(screen.getByText("Si no puedes")).toBeDefined();
-    expect(screen.getByText("55 % de tu 1RM")).toBeDefined();
+    expect(screen.getByText("Si no puedes con 83 kg, usa tu 55 % de 1RM.")).toBeDefined();
+    expect(screen.queryByText("Si no puedes")).toBeNull();
     expect(screen.queryByText("emptyDetail")).toBeNull();
     expect(screen.getByText("Complejo de clean · v2")).toBeDefined();
   });

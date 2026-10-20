@@ -16,9 +16,8 @@ const DETAIL_LABELS: Record<string, string> = {
   repetitions: "Repeticiones",
   rounds: "Rondas",
   loadGuidance: "Carga",
-  recommendedWeightKg: "Peso recomendado",
+  prescribedWeightKg: "Peso del entrenamiento",
   oneRepMaxPercentage: "% de tu 1RM",
-  fallbackOneRepMaxPercentage: "Si no puedes",
   format: "Formato",
   durationSeconds: "Duración",
 };
@@ -49,9 +48,8 @@ function formatDuration(seconds: number): string {
 
 function formatDetail(key: string, value: unknown): string {
   if (key === "durationSeconds" && typeof value === "number") return formatDuration(value);
-  if (key === "recommendedWeightKg" && typeof value === "number") return `${value} kg`;
+  if (key === "prescribedWeightKg" && typeof value === "number") return `${value} kg`;
   if (key === "oneRepMaxPercentage" && typeof value === "number") return `${value} %`;
-  if (key === "fallbackOneRepMaxPercentage" && typeof value === "number") return `${value} % de tu 1RM`;
   if (typeof value === "string" || typeof value === "number") return String(value);
   return JSON.stringify(value);
 }
