@@ -46,7 +46,6 @@ const week: PlanningWeek = {
               details: {
                 sets: 5,
                 repetitions: 3,
-                durationSeconds: 720,
                 oneRepMaxPercentage: 75,
                 emptyDetail: null,
               },
@@ -91,6 +90,41 @@ const week: PlanningWeek = {
           targetRpe: null,
           prescriptions: [],
         },
+        {
+          id: "wod-block-id",
+          position: 3,
+          blockType: { id: "wod-type-id", code: "wod", description: "WOD" },
+          title: "AMRAP 12 minutos",
+          instructions: "Mantener un ritmo constante.",
+          durationSeconds: 720,
+          targetRpe: 8,
+          prescriptions: [
+            {
+              id: "amrap-format-id",
+              position: 1,
+              movement: null,
+              complex: null,
+              details: { format: "amrap", durationSeconds: 720 },
+              notes: null,
+            },
+            {
+              id: "wod-back-squat-id",
+              position: 2,
+              movement: { id: "back-squat-id", code: "back-squat", name: "Back squat" },
+              complex: null,
+              details: { repetitions: 10, prescribedWeightKg: 60 },
+              notes: "Peso obligatorio: 60 kg.",
+            },
+            {
+              id: "wod-deadlift-id",
+              position: 3,
+              movement: { id: "deadlift-id", code: "deadlift", name: "Deadlift" },
+              complex: null,
+              details: { repetitions: 8, prescribedWeightKg: 83 },
+              notes: "Si no puedes con 83 kg, usa tu 55 % de 1RM.",
+            },
+          ],
+        },
       ],
     },
   ],
@@ -120,6 +154,48 @@ function createDraft(): ExecutionDraft {
   };
 }
 
+function createFormatWeek(details: Record<string, unknown>): PlanningWeek {
+  return {
+    ...week,
+    sessions: [
+      {
+        ...week.sessions[0]!,
+        title: "Formatos de WOD",
+        objective: null,
+        blocks: [
+          {
+            id: `format-block-${String(details.format)}`,
+            position: 1,
+            blockType: { id: "wod-type-id", code: "wod", description: "WOD" },
+            title: "Bloque de prueba",
+            instructions: null,
+            durationSeconds: null,
+            targetRpe: 8,
+            prescriptions: [
+              {
+                id: `format-prescription-${String(details.format)}`,
+                position: 1,
+                movement: null,
+                complex: null,
+                details,
+                notes: null,
+              },
+              {
+                id: `format-movement-${String(details.format)}`,
+                position: 2,
+                movement: { id: "back-squat-id", code: "back-squat", name: "Back squat" },
+                complex: null,
+                details: { repetitions: 10, prescribedWeightKg: 60 },
+                notes: null,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -144,15 +220,70 @@ describe("PlanningWeekScreen", () => {
     expect(details?.hasAttribute("open")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
     expect(screen.getByText("5")).toBeDefined();
-    expect(screen.getAllByText("Peso del entrenamiento")).toHaveLength(2);
+    expect(screen.getAllByText("Carga")).toHaveLength(3);
+    expect(screen.getByText("75 % de tu 1RM")).toBeDefined();
     expect(screen.getByText("60 kg")).toBeDefined();
     expect(screen.getByText("83 kg")).toBeDefined();
-    expect(screen.getByText("% de tu 1RM")).toBeDefined();
-    expect(screen.getByText("75 %")).toBeDefined();
+    expect(screen.getByText("Descansar 90 segundos.")).toBeDefined();
     expect(screen.getByText("Si no puedes con 83 kg, usa tu 55 % de 1RM.")).toBeDefined();
-    expect(screen.queryByText("Si no puedes")).toBeNull();
+    expect(screen.queryByText("Peso del entrenamiento")).toBeNull();
+    expect(screen.queryByText("% de tu 1RM")).toBeNull();
+    expect(screen.queryByText("Carga técnica estable")).toBeNull();
     expect(screen.queryByText("emptyDetail")).toBeNull();
     expect(screen.getByText("Complejo de clean · v2")).toBeDefined();
+  });
+
+  it("renders the AMRAP block format without a format-only prescription", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "WOD: AMRAP 12 minutos" }));
+
+    expect(screen.getByText("AMRAP")).toBeDefined();
+    expect(screen.getByText("12 min")).toBeDefined();
+    expect(screen.queryByText("Formato")).toBeNull();
+    expect(screen.getAllByText("Carga")).toHaveLength(2);
+    expect(screen.getByText("Peso obligatorio: 60 kg.")).toBeDefined();
+    expect(screen.getByText("Si no puedes con 83 kg, usa tu 55 % de 1RM.")).toBeDefined();
+  });
+
+  it.each([
+    ["AMRAP", { format: "amrap", durationSeconds: 720 }, ["AMRAP", "12 min"]],
+    [
+      "EMOM",
+      { format: "emom", intervalSeconds: 60, durationSeconds: 600 },
+      ["EMOM", "10 rondas", "cada 1 min"],
+    ],
+    [
+      "E2MOM",
+      { format: "e2mom", durationSeconds: 1200 },
+      ["E2MOM", "10 rondas", "cada 2 min"],
+    ],
+    ["For Time con cap", { format: "for_time", timeCapSeconds: 900 }, ["For Time", "Cap 15 min"]],
+    ["For Time sin cap", { format: "for_time" }, ["For Time", "Sin límite"]],
+    [
+      "Rounds For Time",
+      { format: "rounds_for_time", rounds: 5, timeCapSeconds: 1200 },
+      ["Rounds For Time", "5 rondas", "Cap 20 min"],
+    ],
+    ["formato desconocido", { format: "chipper", durationSeconds: 900 }, ["Chipper", "15 min"]],
+  ])("renders %s workout format details", async (_name, details, expected) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(createFormatWeek(details)), { status: 200 })),
+    );
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Formatos de WOD")).toBeDefined());
+    fireEvent.click(screen.getByText("Formatos de WOD"));
+    fireEvent.click(screen.getByRole("button", { name: "WOD: Bloque de prueba" }));
+
+    for (const text of expected) {
+      expect(screen.getAllByText(text).length).toBeGreaterThan(0);
+    }
+    expect(screen.queryByText("Formato")).toBeNull();
+    expect(screen.getByText("Carga")).toBeDefined();
+    expect(screen.getByText("60 kg")).toBeDefined();
   });
 
   it("keeps only one training block open at a time", async () => {

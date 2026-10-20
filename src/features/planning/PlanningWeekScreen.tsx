@@ -15,12 +15,33 @@ const DETAIL_LABELS: Record<string, string> = {
   sets: "Series",
   repetitions: "Repeticiones",
   rounds: "Rondas",
-  loadGuidance: "Carga",
-  prescribedWeightKg: "Peso del entrenamiento",
-  oneRepMaxPercentage: "% de tu 1RM",
-  format: "Formato",
-  durationSeconds: "Duración",
+  distanceMeters: "Distancia",
+  calories: "Calorías",
 };
+
+const DETAIL_ORDER = ["sets", "repetitions", "load", "rounds", "distanceMeters", "calories"];
+
+const LOAD_DETAIL_KEYS = ["prescribedWeightKg", "oneRepMaxPercentage", "loadGuidance"] as const;
+
+const FORMAT_DETAIL_KEYS = new Set([
+  "format",
+  "durationSeconds",
+  "intervalSeconds",
+  "timeCapSeconds",
+  "rounds",
+]);
+
+const WORKOUT_FORMAT_LABELS: Record<string, string> = {
+  amrap: "AMRAP",
+  emom: "EMOM",
+  e2mom: "E2MOM",
+  e3mom: "E3MOM",
+  e4mom: "E4MOM",
+  for_time: "For Time",
+  rounds_for_time: "Rounds For Time",
+};
+
+type DetailEntry = { key: string; label: string; value: string };
 
 const BLOCK_STATUS_OPTIONS: Array<{
   value: Exclude<BlockExecutionStatus, "draft" | "completed_without_metric" | "abandoned">;
@@ -47,17 +68,146 @@ function formatDuration(seconds: number): string {
 }
 
 function formatDetail(key: string, value: unknown): string {
-  if (key === "durationSeconds" && typeof value === "number") return formatDuration(value);
-  if (key === "prescribedWeightKg" && typeof value === "number") return `${value} kg`;
-  if (key === "oneRepMaxPercentage" && typeof value === "number") return `${value} %`;
+  if (
+    (key === "durationSeconds" || key === "intervalSeconds" || key === "timeCapSeconds") &&
+    typeof value === "number"
+  ) {
+    return formatDuration(value);
+  }
+  if (key === "distanceMeters" && typeof value === "number") return `${value} m`;
+  if (key === "calories" && typeof value === "number") return `${value} cal`;
   if (typeof value === "string" || typeof value === "number") return String(value);
   return JSON.stringify(value);
 }
 
-function visibleDetails(details: Record<string, unknown>): Array<[string, unknown]> {
-  return Object.entries(details).filter(
-    ([, value]) => value !== null && value !== undefined && value !== "",
+function loadDetail(details: Record<string, unknown>): string | null {
+  const parts: string[] = [];
+  if (typeof details.prescribedWeightKg === "number" && Number.isFinite(details.prescribedWeightKg)) {
+    parts.push(`${details.prescribedWeightKg} kg`);
+  }
+  if (typeof details.oneRepMaxPercentage === "number" && Number.isFinite(details.oneRepMaxPercentage)) {
+    parts.push(`${details.oneRepMaxPercentage} % de tu 1RM`);
+  }
+  if (parts.length > 0) return parts.join(" · ");
+  if (typeof details.loadGuidance === "string" && details.loadGuidance.trim()) {
+    return details.loadGuidance;
+  }
+  return null;
+}
+
+function detailEntries(
+  details: Record<string, unknown>,
+  isFormatPrescription: boolean,
+): DetailEntry[] {
+  const hidden = new Set<string>(["format", ...LOAD_DETAIL_KEYS]);
+  if (isFormatPrescription) {
+    for (const key of FORMAT_DETAIL_KEYS) hidden.add(key);
+  }
+
+  const entries: DetailEntry[] = Object.entries(details)
+    .filter(([key, value]) => !hidden.has(key) && value !== null && value !== undefined && value !== "")
+    .map(([key, value]) => ({
+      key,
+      label: DETAIL_LABELS[key] ?? key,
+      value: formatDetail(key, value),
+    }));
+
+  const load = loadDetail(details);
+  if (load) {
+    const repetitionsIndex = entries.findIndex((entry) => entry.key === "repetitions");
+    entries.splice(repetitionsIndex >= 0 ? repetitionsIndex + 1 : 0, 0, {
+      key: "load",
+      label: "Carga",
+      value: load,
+    });
+  }
+
+  return entries.sort((a, b) => {
+    const aOrder = DETAIL_ORDER.indexOf(a.key);
+    const bOrder = DETAIL_ORDER.indexOf(b.key);
+    if (aOrder === -1 && bOrder === -1) return a.key.localeCompare(b.key);
+    if (aOrder === -1) return 1;
+    if (bOrder === -1) return -1;
+    return aOrder - bOrder;
+  });
+}
+
+function normalizeWorkoutFormat(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function workoutFormatLabel(format: string): string {
+  return (
+    WORKOUT_FORMAT_LABELS[format] ??
+    format.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase())
   );
+}
+
+function numberDetail(details: Record<string, unknown>, key: string): number | null {
+  const value = details[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function emomIntervalSeconds(format: string): number | null {
+  if (format === "emom") return 60;
+  const match = /^e(\d+)mom$/.exec(format);
+  return match ? Number(match[1]) * 60 : null;
+}
+
+function workoutFormatMeta(
+  format: string,
+  details: Record<string, unknown>,
+  blockDurationSeconds: number | null,
+): string[] {
+  const duration = numberDetail(details, "durationSeconds") ?? blockDurationSeconds;
+  const timeCap = numberDetail(details, "timeCapSeconds");
+  const rounds = numberDetail(details, "rounds");
+  const interval = numberDetail(details, "intervalSeconds") ?? emomIntervalSeconds(format);
+
+  if (format === "amrap") {
+    return duration ? [formatDuration(duration)] : [];
+  }
+  if (format === "for_time") {
+    return [timeCap ? `Cap ${formatDuration(timeCap)}` : "Sin límite"];
+  }
+  if (format === "rounds_for_time") {
+    return [
+      ...(rounds ? [`${rounds} rondas`] : []),
+      timeCap ? `Cap ${formatDuration(timeCap)}` : "Sin límite",
+    ];
+  }
+  if (interval) {
+    const totalRounds = rounds ?? (duration ? Math.max(1, Math.round(duration / interval)) : null);
+    return [
+      ...(totalRounds ? [`${totalRounds} rondas`] : []),
+      `cada ${formatDuration(interval)}`,
+    ];
+  }
+  return duration ? [formatDuration(duration)] : [];
+}
+
+function findWorkoutFormat(block: PlannedBlock): {
+  prescriptionId: string;
+  format: string;
+  details: Record<string, unknown>;
+} | null {
+  for (const item of block.prescriptions) {
+    const value = item.details.format;
+    if (typeof value === "string" && value.trim()) {
+      return {
+        prescriptionId: item.id,
+        format: normalizeWorkoutFormat(value),
+        details: item.details,
+      };
+    }
+  }
+  return null;
+}
+
+function isFormatOnlyPrescription(item: PlannedBlock["prescriptions"][number]): boolean {
+  if (item.movement || item.complex || item.notes) return false;
+  const keys = Object.keys(item.details);
+  return keys.length > 0 && keys.every((key) => FORMAT_DETAIL_KEYS.has(key));
 }
 
 type PlannedBlock = PlannedSession["blocks"][number];
@@ -95,6 +245,11 @@ function BlockAccordion({
   const executionBlock = draft?.snapshot.blocks.find((item) => item.plannedBlockId === block.id);
   const effectiveStatus = executionBlock ? effectiveBlockStatus(executionBlock) : null;
   const withoutMetrics = executionBlock ? hasNoMetrics(executionBlock) : false;
+  const workoutFormat = findWorkoutFormat(block);
+  const formatMeta = workoutFormat
+    ? workoutFormatMeta(workoutFormat.format, workoutFormat.details, block.durationSeconds)
+    : [];
+  const showHeaderDuration = Boolean(block.durationSeconds) && formatMeta.length === 0;
 
   function changeExecutionBlock(changes: Partial<ExecutionBlock>) {
     if (!draft || !executionBlock) return;
@@ -125,7 +280,9 @@ function BlockAccordion({
           <strong>{block.title}</strong>
         </span>
         <span className="block-metrics">
-          {block.durationSeconds ? <span>{formatDuration(block.durationSeconds)}</span> : null}
+          {showHeaderDuration && block.durationSeconds ? (
+            <span>{formatDuration(block.durationSeconds)}</span>
+          ) : null}
           {block.targetRpe ? <span>RPE {block.targetRpe}</span> : null}
           {executionBlock && effectiveStatus !== "draft" ? (
             <span className={`block-status-badge block-status-${effectiveStatus}`}>
@@ -142,28 +299,51 @@ function BlockAccordion({
         <div className="block-panel" id={`block-panel-${block.id}`}>
           <div className="planned-block-content">
             <p className="block-section-label">Entrenamiento previsto</p>
-            {block.instructions ? <p className="block-instructions">{block.instructions}</p> : null}
-            {block.prescriptions.map((item) => (
-              <div className="prescription" key={item.id}>
-                {item.movement ? <strong>{item.movement.name}</strong> : null}
-                {item.complex ? (
-                  <strong>
-                    {item.complex.name} · v{item.complex.versionNumber}
-                  </strong>
-                ) : null}
-                {Object.keys(item.details).length > 0 ? (
-                  <dl>
-                    {visibleDetails(item.details).map(([key, value]) => (
-                      <div key={key}>
-                        <dt>{DETAIL_LABELS[key] ?? key}</dt>
-                        <dd>{formatDetail(key, value)}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                ) : null}
-                {item.notes ? <p className="prescription-note">{item.notes}</p> : null}
+            {workoutFormat ? (
+              <div className="workout-format">
+                <span className="workout-format-name">
+                  {workoutFormatLabel(workoutFormat.format)}
+                </span>
+                {formatMeta.map((item, index) => (
+                  <span className="workout-format-meta" key={`${item}-${index}`}>
+                    {item}
+                  </span>
+                ))}
               </div>
-            ))}
+            ) : null}
+            {block.instructions ? <p className="block-instructions">{block.instructions}</p> : null}
+            {block.prescriptions
+              .filter((item) => !isFormatOnlyPrescription(item))
+              .map((item) => {
+                const entries = detailEntries(
+                  item.details,
+                  item.id === workoutFormat?.prescriptionId,
+                );
+                if (!item.movement && !item.complex && entries.length === 0 && !item.notes) {
+                  return null;
+                }
+                return (
+                  <div className="prescription" key={item.id}>
+                    {item.movement ? <strong>{item.movement.name}</strong> : null}
+                    {item.complex ? (
+                      <strong>
+                        {item.complex.name} · v{item.complex.versionNumber}
+                      </strong>
+                    ) : null}
+                    {entries.length > 0 ? (
+                      <dl>
+                        {entries.map((entry) => (
+                          <div key={entry.key}>
+                            <dt>{entry.label}</dt>
+                            <dd>{entry.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ) : null}
+                    {item.notes ? <p className="prescription-note">{item.notes}</p> : null}
+                  </div>
+                );
+              })}
           </div>
 
           <div className="block-registration">

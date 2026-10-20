@@ -81,6 +81,9 @@ button { font: inherit; }
 .planned-block-content { padding: 1rem; }
 .block-section-label { margin: 0 0 .65rem; color: #69756b; font-size: .68rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .block-instructions { margin: 0; color: #536055; line-height: 1.5; }
+.workout-format { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-bottom: .8rem; }
+.workout-format-name { padding: .32rem .58rem; border-radius: .45rem; color: #fff; background: #775493; font-size: .72rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.workout-format-meta { padding: .28rem .55rem; border-radius: 999px; color: #4f3d5e; background: #f0e9f5; font-size: .75rem; font-weight: 750; }
 .prescription { margin-top: .9rem; padding: .85rem 1rem; border-left: 3px solid #87a68c; border-radius: 0 .6rem .6rem 0; background: #f4f7f2; }
 .prescription strong { display: block; margin-bottom: .55rem; }
 .prescription dl { display: flex; gap: .75rem 1.25rem; flex-wrap: wrap; margin: 0; }
