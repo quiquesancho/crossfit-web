@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { getOrCreateDraftForSession } from "../execution/drafts";
+import { getOrCreateDraftForSession, saveExecutionDraft } from "../execution/drafts";
+import type { ExecutionDraft } from "../execution/types";
 import { fetchPlanningWeek, type PlannedSession, type PlanningWeek } from "./api";
 import { currentWeekStart, formatSessionDate, formatWeekRange, shiftWeek } from "./dates";
 
@@ -31,13 +32,134 @@ function formatDetail(key: string, value: unknown): string {
   return JSON.stringify(value);
 }
 
+type PlannedBlock = PlannedSession["blocks"][number];
+
+function BlockAccordion({
+  block,
+  open,
+  draft,
+  onToggle,
+  onDraftChange,
+}: {
+  block: PlannedBlock;
+  open: boolean;
+  draft: ExecutionDraft | null;
+  onToggle: () => void;
+  onDraftChange: (draft: ExecutionDraft) => void;
+}) {
+  const executionBlock = draft?.snapshot.blocks.find((item) => item.plannedBlockId === block.id);
+
+  function changeNotes(notes: string) {
+    if (!draft || !executionBlock) return;
+    onDraftChange({
+      ...draft,
+      snapshot: {
+        ...draft.snapshot,
+        blocks: draft.snapshot.blocks.map((item) =>
+          item.id === executionBlock.id ? { ...item, notes: notes || undefined } : item,
+        ),
+      },
+    });
+  }
+
+  return (
+    <section className={`training-block${open ? " training-block-open" : ""}`}>
+      <button
+        type="button"
+        className="block-toggle"
+        aria-expanded={open}
+        aria-controls={`block-panel-${block.id}`}
+        aria-label={`${block.blockType.description}: ${block.title}`}
+        onClick={onToggle}
+      >
+        <span className="block-order">{block.position}</span>
+        <span className="block-summary-content">
+          <span className={`block-type block-type-${block.blockType.code}`}>{block.blockType.description}</span>
+          <strong>{block.title}</strong>
+        </span>
+        <span className="block-metrics">
+          {block.durationSeconds ? <span>{formatDuration(block.durationSeconds)}</span> : null}
+          {block.targetRpe ? <span>RPE {block.targetRpe}</span> : null}
+        </span>
+        <span className="block-expand" aria-hidden="true">
+          {open ? "−" : "+"}
+        </span>
+      </button>
+
+      {open ? (
+        <div className="block-panel" id={`block-panel-${block.id}`}>
+          <div className="planned-block-content">
+            <p className="block-section-label">Entrenamiento previsto</p>
+            {block.instructions ? <p className="block-instructions">{block.instructions}</p> : null}
+            {block.prescriptions.map((item) => (
+              <div className="prescription" key={item.id}>
+                {item.movement ? <strong>{item.movement.name}</strong> : null}
+                {item.complex ? (
+                  <strong>
+                    {item.complex.name} · v{item.complex.versionNumber}
+                  </strong>
+                ) : null}
+                {Object.keys(item.details).length > 0 ? (
+                  <dl>
+                    {Object.entries(item.details).map(([key, value]) => (
+                      <div key={key}>
+                        <dt>{DETAIL_LABELS[key] ?? key}</dt>
+                        <dd>{formatDetail(key, value)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
+                {item.notes ? <p className="prescription-note">{item.notes}</p> : null}
+              </div>
+            ))}
+          </div>
+
+          <div className="block-notes">
+            <label htmlFor={`block-notes-${block.id}`}>Mis notas para este bloque</label>
+            {draft && executionBlock ? (
+              <textarea
+                id={`block-notes-${block.id}`}
+                value={executionBlock.notes ?? ""}
+                placeholder="Técnica, sensaciones, ajustes o cualquier detalle útil…"
+                rows={3}
+                onChange={(event) => changeNotes(event.target.value)}
+              />
+            ) : (
+              <p>Inicia el registro de la sesión para añadir notas y guardarlas sin conexión.</p>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function SessionCard({ session }: { session: PlannedSession }) {
   const [draftState, setDraftState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [draft, setDraft] = useState<ExecutionDraft | null>(null);
+  const [openBlockId, setOpenBlockId] = useState<string | null>(null);
 
   async function startExecution() {
     setDraftState("saving");
     try {
-      await getOrCreateDraftForSession(session);
+      const executionDraft = await getOrCreateDraftForSession(session);
+      setDraft(executionDraft);
+      setDraftState("saved");
+    } catch {
+      setDraftState("error");
+    }
+  }
+
+  async function updateDraft(nextDraft: ExecutionDraft) {
+    const pendingDraft: ExecutionDraft = {
+      ...nextDraft,
+      syncStatus: "pending",
+      updatedAt: new Date().toISOString(),
+      lastError: undefined,
+    };
+    setDraft(pendingDraft);
+    try {
+      await saveExecutionDraft(pendingDraft);
       setDraftState("saved");
     } catch {
       setDraftState("error");
@@ -45,7 +167,12 @@ function SessionCard({ session }: { session: PlannedSession }) {
   }
 
   return (
-    <details className="session-card">
+    <details
+      className="session-card"
+      onToggle={(event) => {
+        if (!event.currentTarget.open) setOpenBlockId(null);
+      }}
+    >
       <summary className="session-heading">
         <div>
           <p className="session-date">{formatSessionDate(session.plannedDate)}</p>
@@ -64,57 +191,26 @@ function SessionCard({ session }: { session: PlannedSession }) {
             <strong>Registro del entrenamiento</strong>
             <p>Prepara un borrador local que podrás completar incluso sin conexión.</p>
           </div>
-          <button disabled={draftState === "saving" || draftState === "saved"} onClick={startExecution}>
+          <button disabled={draftState === "saving" || draft !== null} onClick={startExecution}>
             {draftState === "saving"
               ? "Guardando…"
-              : draftState === "saved"
+              : draft
                 ? "Borrador preparado"
                 : "Registrar sesión"}
           </button>
-          {draftState === "error" ? <p role="alert">No se pudo crear el borrador local.</p> : null}
+          {draftState === "error" ? <p role="alert">No se pudo guardar el borrador local.</p> : null}
         </div>
 
         <div className="block-list">
           {session.blocks.map((block) => (
-            <section className="training-block" key={block.id}>
-              <div className="block-order">{block.position}</div>
-              <div className="block-content">
-                <div className="block-heading">
-                  <div>
-                    <span className={`block-type block-type-${block.blockType.code}`}>
-                      {block.blockType.description}
-                    </span>
-                    <h4>{block.title}</h4>
-                  </div>
-                  <div className="block-metrics">
-                    {block.durationSeconds ? <span>{formatDuration(block.durationSeconds)}</span> : null}
-                    {block.targetRpe ? <span>RPE {block.targetRpe}</span> : null}
-                  </div>
-                </div>
-                {block.instructions ? <p>{block.instructions}</p> : null}
-                {block.prescriptions.map((item) => (
-                  <div className="prescription" key={item.id}>
-                    {item.movement ? <strong>{item.movement.name}</strong> : null}
-                    {item.complex ? (
-                      <strong>
-                        {item.complex.name} · v{item.complex.versionNumber}
-                      </strong>
-                    ) : null}
-                    {Object.keys(item.details).length > 0 ? (
-                      <dl>
-                        {Object.entries(item.details).map(([key, value]) => (
-                          <div key={key}>
-                            <dt>{DETAIL_LABELS[key] ?? key}</dt>
-                            <dd>{formatDetail(key, value)}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    ) : null}
-                    {item.notes ? <p className="prescription-note">{item.notes}</p> : null}
-                  </div>
-                ))}
-              </div>
-            </section>
+            <BlockAccordion
+              key={block.id}
+              block={block}
+              open={openBlockId === block.id}
+              draft={draft}
+              onToggle={() => setOpenBlockId((current) => (current === block.id ? null : block.id))}
+              onDraftChange={updateDraft}
+            />
           ))}
         </div>
       </div>

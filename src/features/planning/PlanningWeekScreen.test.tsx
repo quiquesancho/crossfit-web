@@ -1,11 +1,15 @@
 import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getOrCreateDraftForSession } from "../execution/drafts";
+import { getOrCreateDraftForSession, saveExecutionDraft } from "../execution/drafts";
+import type { ExecutionDraft } from "../execution/types";
 import type { PlanningWeek } from "./api";
 import { PlanningWeekScreen } from "./PlanningWeekScreen";
 
-vi.mock("../execution/drafts", () => ({ getOrCreateDraftForSession: vi.fn() }));
+vi.mock("../execution/drafts", () => ({
+  getOrCreateDraftForSession: vi.fn(),
+  saveExecutionDraft: vi.fn(),
+}));
 
 const week: PlanningWeek = {
   id: "week-id",
@@ -52,10 +56,44 @@ const week: PlanningWeek = {
             },
           ],
         },
+        {
+          id: "warmup-block-id",
+          position: 2,
+          blockType: { id: "warmup-type-id", code: "warmup", description: "Calentamiento" },
+          title: "Movilidad y activación",
+          instructions: "Preparar hombros y cadera.",
+          durationSeconds: 600,
+          targetRpe: null,
+          prescriptions: [],
+        },
       ],
     },
   ],
 };
+
+function createDraft(): ExecutionDraft {
+  return {
+    id: "draft-id",
+    plannedSessionId: "session-id",
+    executionDate: "2026-10-20",
+    syncStatus: "pending",
+    updatedAt: "2026-10-20T10:00:00.000Z",
+    snapshot: {
+      baseRevision: 0,
+      plannedSessionId: "session-id",
+      executionDate: "2026-10-20",
+      status: "draft",
+      blocks: week.sessions[0]!.blocks.map((block, index) => ({
+        id: `execution-block-${index}`,
+        plannedBlockId: block.id,
+        position: block.position,
+        blockTypeId: block.blockType.id,
+        title: block.title,
+        status: "draft",
+      })),
+    },
+  };
+}
 
 afterEach(() => {
   cleanup();
@@ -73,14 +111,35 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     expect(screen.getByText("Técnica y ritmo sostenible")).toBeDefined();
     expect(screen.getAllByText("Power clean").length).toBeGreaterThan(0);
-    expect(screen.getByText("5")).toBeDefined();
-    expect(screen.getByText("Complejo de clean · v2")).toBeDefined();
     expect(screen.getByText("1 h 5 min")).toBeDefined();
 
     const details = screen.getByText("Power clean y AMRAP").closest("details");
     expect(details?.hasAttribute("open")).toBe(false);
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
     expect(details?.hasAttribute("open")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+    expect(screen.getByText("5")).toBeDefined();
+    expect(screen.getByText("Complejo de clean · v2")).toBeDefined();
+  });
+
+  it("keeps only one training block open at a time", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+
+    const strength = screen.getByRole("button", { name: "Fuerza: Power clean" });
+    const warmup = screen.getByRole("button", { name: "Calentamiento: Movilidad y activación" });
+    expect(strength.getAttribute("aria-expanded")).toBe("false");
+    expect(warmup.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(strength);
+    expect(strength.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(warmup);
+    expect(strength.getAttribute("aria-expanded")).toBe("false");
+    expect(warmup.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.queryByText("Completar todas las series con buena técnica.")).toBeNull();
+    expect(screen.getByText("Preparar hombros y cadera.")).toBeDefined();
   });
 
   it("navigates to the following week", async () => {
@@ -118,7 +177,7 @@ describe("PlanningWeekScreen", () => {
 
   it("creates an offline draft from a planned session", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
-    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce({ id: "draft-id" } as never);
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
@@ -127,5 +186,33 @@ describe("PlanningWeekScreen", () => {
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
     expect(getOrCreateDraftForSession).toHaveBeenCalledWith(week.sessions[0]);
+  });
+
+  it("stores personal block notes in the offline draft", async () => {
+    const draft = createDraft();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(draft);
+    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+
+    fireEvent.change(screen.getByLabelText("Mis notas para este bloque"), {
+      target: { value: "Mantener los codos altos." },
+    });
+
+    await waitFor(() => expect(saveExecutionDraft).toHaveBeenCalledTimes(1));
+    expect(saveExecutionDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          blocks: expect.arrayContaining([
+            expect.objectContaining({ plannedBlockId: "block-id", notes: "Mantener los codos altos." }),
+          ]),
+        }),
+      }),
+    );
   });
 });
