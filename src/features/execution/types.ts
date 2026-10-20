@@ -7,9 +7,19 @@ export type BlockExecutionStatus =
   | "skipped"
   | "abandoned";
 
+export type WeightValue = {
+  amount: number;
+  unit: string;
+};
+
+export type LoadStatus = "rx" | "scaled";
+
 export type PrescriptionExecutionMetric = {
   plannedPrescriptionId: string;
+  actualWeight?: WeightValue;
+  /** Legacy drafts stored the amount with the unit encoded in the field name. */
   actualWeightKg?: number;
+  loadStatus?: LoadStatus;
 };
 
 export type BlockExecutionMetrics = {

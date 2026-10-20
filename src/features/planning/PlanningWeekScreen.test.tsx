@@ -47,6 +47,7 @@ const week: PlanningWeek = {
                 sets: 5,
                 repetitions: 3,
                 oneRepMaxPercentage: 75,
+                weightUnit: "kg",
                 emptyDetail: null,
               },
               notes: "Descansar 90 segundos.",
@@ -56,7 +57,7 @@ const week: PlanningWeek = {
               position: 2,
               movement: { id: "back-squat-id", code: "back-squat", name: "Back squat" },
               complex: null,
-              details: { repetitions: 10, prescribedWeightKg: 60 },
+              details: { repetitions: 10, prescribedWeight: { amount: 60, unit: "kg" } },
               notes: null,
             },
             {
@@ -66,7 +67,7 @@ const week: PlanningWeek = {
               complex: null,
               details: {
                 repetitions: 8,
-                prescribedWeightKg: 83,
+                prescribedWeight: { amount: 83, unit: "kg" },
               },
               notes: "Si no puedes con 83 kg, usa tu 55 % de 1RM.",
             },
@@ -112,7 +113,7 @@ const week: PlanningWeek = {
               position: 2,
               movement: { id: "back-squat-id", code: "back-squat", name: "Back squat" },
               complex: null,
-              details: { repetitions: 10, prescribedWeightKg: 60 },
+              details: { repetitions: 10, prescribedWeight: { amount: 60, unit: "kg" } },
               notes: "Peso obligatorio: 60 kg.",
             },
             {
@@ -120,7 +121,7 @@ const week: PlanningWeek = {
               position: 3,
               movement: { id: "deadlift-id", code: "deadlift", name: "Deadlift" },
               complex: null,
-              details: { repetitions: 8, prescribedWeightKg: 83 },
+              details: { repetitions: 8, prescribedWeight: { amount: 83, unit: "kg" } },
               notes: "Si no puedes con 83 kg, usa tu 55 % de 1RM.",
             },
           ],
@@ -185,7 +186,7 @@ function createFormatWeek(details: Record<string, unknown>): PlanningWeek {
                 position: 2,
                 movement: { id: "back-squat-id", code: "back-squat", name: "Back squat" },
                 complex: null,
-                details: { repetitions: 10, prescribedWeightKg: 60 },
+                details: { repetitions: 10, prescribedWeight: { amount: 60, unit: "kg" } },
                 notes: null,
               },
             ],
@@ -194,6 +195,13 @@ function createFormatWeek(details: Record<string, unknown>): PlanningWeek {
       },
     ],
   };
+}
+
+function loadValues(): string[] {
+  return screen.getAllByText("Carga").map((label) => {
+    const cell = label.parentElement;
+    return cell?.querySelector(".load-value")?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+  });
 }
 
 afterEach(() => {
@@ -221,10 +229,9 @@ describe("PlanningWeekScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
     expect(screen.getByText("5")).toBeDefined();
     expect(screen.getAllByText("Carga")).toHaveLength(3);
-    expect(screen.getByText("75 %")).toBeDefined();
+    expect(loadValues()).toEqual(expect.arrayContaining(["75 %", "60 kg", "83 kg"]));
     expect(screen.queryByText("75 % de tu 1RM")).toBeNull();
-    expect(screen.getByText("60 kg")).toBeDefined();
-    expect(screen.getByText("83 kg")).toBeDefined();
+    expect(screen.queryByText("de tu 1RM")).toBeNull();
     expect(screen.getByText("Descansar 90 segundos.")).toBeDefined();
     expect(screen.getByText("Si no puedes con 83 kg, usa tu 55 % de 1RM.")).toBeDefined();
     expect(screen.queryByText("Peso del entrenamiento")).toBeNull();
@@ -245,6 +252,7 @@ describe("PlanningWeekScreen", () => {
     expect(screen.getByText("12 min")).toBeDefined();
     expect(screen.queryByText("Formato")).toBeNull();
     expect(screen.getAllByText("Carga")).toHaveLength(2);
+    expect(loadValues()).toEqual(["60 kg", "83 kg"]);
     expect(screen.getByText("Peso obligatorio: 60 kg.")).toBeDefined();
     expect(screen.getByText("Si no puedes con 83 kg, usa tu 55 % de 1RM.")).toBeDefined();
   });
@@ -284,7 +292,25 @@ describe("PlanningWeekScreen", () => {
     }
     expect(screen.queryByText("Formato")).toBeNull();
     expect(screen.getByText("Carga")).toBeDefined();
-    expect(screen.getByText("60 kg")).toBeDefined();
+    expect(loadValues()).toContain("60 kg");
+  });
+
+  it("reads legacy prescribedWeightKg details", async () => {
+    const legacyWeek = structuredClone(week);
+    legacyWeek.sessions[0]!.blocks[2]!.prescriptions[2]!.details = {
+      repetitions: 8,
+      prescribedWeightKg: 83,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(legacyWeek), { status: 200 })),
+    );
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "WOD: AMRAP 12 minutos" }));
+
+    expect(loadValues()).toEqual(["60 kg", "83 kg"]);
   });
 
   it("keeps only one training block open at a time", async () => {
@@ -439,8 +465,15 @@ describe("PlanningWeekScreen", () => {
     expect(within(details as HTMLElement).getByText("Repeticiones")).toBeDefined();
     expect(within(details as HTMLElement).getByText("Carga")).toBeDefined();
     expect(screen.queryByText("Cargas usadas")).toBeNull();
+    const loadValue = details?.querySelector(".load-value");
+    expect(loadValue?.querySelector(".load-amount")?.textContent).toBe("75");
+    expect(loadValue?.querySelector(".load-unit")?.textContent).toBe("%");
+    expect(loadValue?.textContent?.replace(/\s+/g, " ").trim()).toBe("75 %");
+    const loadCell = weight.closest(".prescription-load");
+    expect(loadCell?.querySelector(".load-unit")?.textContent).toBe("kg");
     fireEvent.change(weight, { target: { value: "55" } });
     fireEvent.blur(weight);
+    expect((weight as HTMLInputElement).value).toBe("55");
 
     await waitFor(() =>
       expect(saveExecutionDraft).toHaveBeenLastCalledWith(
@@ -453,7 +486,7 @@ describe("PlanningWeekScreen", () => {
                   prescriptions: expect.arrayContaining([
                     expect.objectContaining({
                       plannedPrescriptionId: "prescription-id",
-                      actualWeightKg: 55,
+                      actualWeight: { amount: 55, unit: "kg" },
                     }),
                   ]),
                 }),
@@ -465,7 +498,7 @@ describe("PlanningWeekScreen", () => {
     );
   });
 
-  it("marks an RX weight and a scaled weight", async () => {
+  it("switches a load between RX and scaled", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
     vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
@@ -478,17 +511,86 @@ describe("PlanningWeekScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
 
     const backSquat = await screen.findByRole("textbox", { name: "Peso usado en Back squat" });
-    fireEvent.change(backSquat, { target: { value: "60" } });
-    fireEvent.blur(backSquat);
-    await waitFor(() => expect(screen.getByText("RX")).toBeDefined());
+    const card = backSquat.closest(".prescription") as HTMLElement;
+    const loadSwitch = within(card).getByRole("switch", {
+      name: "Tipo de carga en Back squat",
+    });
+    expect((loadSwitch as HTMLInputElement).checked).toBe(false);
+    expect(within(card).getByText("RX").className).toContain("load-switch-label-rx-active");
+
+    fireEvent.click(loadSwitch);
+    await waitFor(() => expect((loadSwitch as HTMLInputElement).checked).toBe(true));
+    expect(within(card).getByText("Escalado").className).toContain(
+      "load-switch-label-scaled-active",
+    );
+    expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          blocks: expect.arrayContaining([
+            expect.objectContaining({
+              plannedBlockId: "block-id",
+              metrics: expect.objectContaining({
+                prescriptions: expect.arrayContaining([
+                  expect.objectContaining({
+                    plannedPrescriptionId: "back-squat-prescription-id",
+                    loadStatus: "scaled",
+                  }),
+                ]),
+              }),
+            }),
+          ]),
+        }),
+      }),
+    );
 
     fireEvent.change(backSquat, { target: { value: "50" } });
     fireEvent.blur(backSquat);
-    await waitFor(() => expect(screen.getByText("Escalado")).toBeDefined());
+    await waitFor(() =>
+      expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          snapshot: expect.objectContaining({
+            blocks: expect.arrayContaining([
+              expect.objectContaining({
+                plannedBlockId: "block-id",
+                metrics: expect.objectContaining({
+                  prescriptions: expect.arrayContaining([
+                    expect.objectContaining({
+                      plannedPrescriptionId: "back-squat-prescription-id",
+                      actualWeight: { amount: 50, unit: "kg" },
+                      loadStatus: "scaled",
+                    }),
+                  ]),
+                }),
+              }),
+            ]),
+          }),
+        }),
+      ),
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: "Usar RX en Back squat" }));
-    await waitFor(() => expect((backSquat as HTMLInputElement).value).toBe("60"));
-    expect(screen.getByText("RX")).toBeDefined();
+    fireEvent.click(loadSwitch);
+    await waitFor(() => expect((loadSwitch as HTMLInputElement).checked).toBe(false));
+    expect((backSquat as HTMLInputElement).value).toBe("60");
+    expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          blocks: expect.arrayContaining([
+            expect.objectContaining({
+              plannedBlockId: "block-id",
+              metrics: expect.objectContaining({
+                prescriptions: expect.arrayContaining([
+                  expect.objectContaining({
+                    plannedPrescriptionId: "back-squat-prescription-id",
+                    actualWeight: { amount: 60, unit: "kg" },
+                    loadStatus: "rx",
+                  }),
+                ]),
+              }),
+            }),
+          ]),
+        }),
+      }),
+    );
   });
 
   it("stores AMRAP rounds and repetitions from the current round", async () => {
@@ -547,6 +649,9 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() =>
       expect(screen.queryByRole("textbox", { name: "Peso usado en Power clean" })).toBeNull(),
     );
+    expect(
+      screen.queryByRole("switch", { name: "Tipo de carga en Power clean" }),
+    ).toBeNull();
   });
 
   it("marks a completed block as done without metrics", async () => {

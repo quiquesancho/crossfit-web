@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 
 import { getOrCreateDraftForSession, saveExecutionDraft } from "../execution/drafts";
-import type { BlockExecutionMetrics, BlockExecutionStatus, ExecutionDraft } from "../execution/types";
+import type {
+  BlockExecutionMetrics,
+  BlockExecutionStatus,
+  ExecutionDraft,
+  LoadStatus,
+  PrescriptionExecutionMetric,
+  WeightValue,
+} from "../execution/types";
 import { fetchPlanningWeek, type PlannedSession, type PlanningWeek } from "./api";
 import { currentWeekStart, formatSessionDate, formatWeekRange, shiftWeek } from "./dates";
 
@@ -21,7 +28,13 @@ const DETAIL_LABELS: Record<string, string> = {
 
 const DETAIL_ORDER = ["sets", "repetitions", "load", "rounds", "distanceMeters", "calories"];
 
-const LOAD_DETAIL_KEYS = ["prescribedWeightKg", "oneRepMaxPercentage", "loadGuidance"] as const;
+const LOAD_DETAIL_KEYS = [
+  "prescribedWeight",
+  "prescribedWeightKg",
+  "oneRepMaxPercentage",
+  "loadGuidance",
+  "weightUnit",
+] as const;
 
 const FORMAT_DETAIL_KEYS = new Set([
   "format",
@@ -41,7 +54,16 @@ const WORKOUT_FORMAT_LABELS: Record<string, string> = {
   rounds_for_time: "Rounds For Time",
 };
 
-type DetailEntry = { key: string; label: string; value: string };
+type LoadDisplay =
+  | { kind: "guidance"; text: string }
+  | {
+      kind: "values";
+      weight?: WeightValue;
+      percentage?: number;
+      compactPercentage: boolean;
+    };
+
+type DetailEntry = { key: string; label: string; value: string; load?: LoadDisplay };
 
 const BLOCK_STATUS_OPTIONS: Array<{
   value: Exclude<BlockExecutionStatus, "draft" | "completed_without_metric" | "abandoned">;
@@ -80,26 +102,71 @@ function formatDetail(key: string, value: unknown): string {
   return JSON.stringify(value);
 }
 
-function loadDetail(
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function prescribedWeight(details: Record<string, unknown>): WeightValue | undefined {
+  const structured = details.prescribedWeight;
+  if (isObject(structured)) {
+    const amount = structured.amount;
+    const unit = structured.unit;
+    if (typeof amount === "number" && Number.isFinite(amount) && amount >= 0) {
+      return {
+        amount,
+        unit: typeof unit === "string" && unit.trim() ? unit.trim() : "kg",
+      };
+    }
+  }
+  if (
+    typeof details.prescribedWeightKg === "number" &&
+    Number.isFinite(details.prescribedWeightKg) &&
+    details.prescribedWeightKg >= 0
+  ) {
+    return { amount: details.prescribedWeightKg, unit: "kg" };
+  }
+  return undefined;
+}
+
+function weightUnit(details: Record<string, unknown>): string {
+  const load = prescribedWeight(details);
+  if (load) return load.unit;
+  if (typeof details.weightUnit === "string" && details.weightUnit.trim()) {
+    return details.weightUnit.trim();
+  }
+  return "kg";
+}
+
+function loadDisplay(
   details: Record<string, unknown>,
-  compactPercentage = false,
-): string | null {
-  const parts: string[] = [];
-  if (typeof details.prescribedWeightKg === "number" && Number.isFinite(details.prescribedWeightKg)) {
-    parts.push(`${details.prescribedWeightKg} kg`);
+  compactPercentage: boolean,
+): LoadDisplay | null {
+  const weight = prescribedWeight(details);
+  const percentage =
+    typeof details.oneRepMaxPercentage === "number" && Number.isFinite(details.oneRepMaxPercentage)
+      ? details.oneRepMaxPercentage
+      : undefined;
+  if (weight || percentage !== undefined) {
+    return { kind: "values", weight, percentage, compactPercentage };
   }
-  if (typeof details.oneRepMaxPercentage === "number" && Number.isFinite(details.oneRepMaxPercentage)) {
-    parts.push(
-      compactPercentage
-        ? `${details.oneRepMaxPercentage} %`
-        : `${details.oneRepMaxPercentage} % de tu 1RM`,
-    );
-  }
-  if (parts.length > 0) return parts.join(" · ");
   if (typeof details.loadGuidance === "string" && details.loadGuidance.trim()) {
-    return details.loadGuidance;
+    return { kind: "guidance", text: details.loadGuidance };
   }
   return null;
+}
+
+function loadDisplayText(display: LoadDisplay): string {
+  if (display.kind === "guidance") return display.text;
+  const parts: string[] = [];
+  if (display.weight) parts.push(`${display.weight.amount} ${display.weight.unit}`);
+  if (display.percentage !== undefined) {
+    parts.push(
+      display.compactPercentage
+        ? `${display.percentage} %`
+        : `${display.percentage} % de tu 1RM`,
+    );
+  }
+  return parts.join(" · ");
 }
 
 function detailEntries(
@@ -120,13 +187,14 @@ function detailEntries(
       value: formatDetail(key, value),
     }));
 
-  const load = loadDetail(details, compactPercentage);
+  const load = loadDisplay(details, compactPercentage);
   if (load) {
     const repetitionsIndex = entries.findIndex((entry) => entry.key === "repetitions");
     entries.splice(repetitionsIndex >= 0 ? repetitionsIndex + 1 : 0, 0, {
       key: "load",
       label: "Carga",
-      value: load,
+      value: loadDisplayText(load),
+      load,
     });
   }
 
@@ -220,8 +288,9 @@ function isFormatOnlyPrescription(item: PlannedBlock["prescriptions"][number]): 
 
 function hasStructuredLoad(details: Record<string, unknown>): boolean {
   return (
-    typeof details.prescribedWeightKg === "number" ||
-    typeof details.oneRepMaxPercentage === "number"
+    prescribedWeight(details) !== undefined ||
+    (typeof details.oneRepMaxPercentage === "number" &&
+      Number.isFinite(details.oneRepMaxPercentage))
   );
 }
 
@@ -236,10 +305,23 @@ function cleanMetrics(metrics: BlockExecutionMetrics): BlockExecutionMetrics | u
   if (metrics.rounds !== undefined) next.rounds = metrics.rounds;
   if (metrics.extraRepetitions !== undefined) next.extraRepetitions = metrics.extraRepetitions;
   const prescriptions = metrics.prescriptions?.filter(
-    (item) => item.actualWeightKg !== undefined,
+    (item) =>
+      item.actualWeight !== undefined ||
+      item.actualWeightKg !== undefined ||
+      item.loadStatus !== undefined,
   );
   if (prescriptions && prescriptions.length > 0) next.prescriptions = prescriptions;
   return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function metricActualWeight(
+  metric: PrescriptionExecutionMetric | undefined,
+): WeightValue | undefined {
+  if (metric?.actualWeight) return metric.actualWeight;
+  if (typeof metric?.actualWeightKg === "number" && Number.isFinite(metric.actualWeightKg)) {
+    return { amount: metric.actualWeightKg, unit: "kg" };
+  }
+  return undefined;
 }
 
 function amrapResultSummary(metrics: BlockExecutionMetrics | undefined): string | null {
@@ -312,6 +394,48 @@ function MetricNumberInput({
   );
 }
 
+function LoadPartView({
+  amount,
+  unit,
+  suffix,
+}: {
+  amount: number;
+  unit: string;
+  suffix?: string;
+}) {
+  return (
+    <span className="load-part">
+      <span className="load-amount">{amount}</span>{" "}
+      <span className="load-unit">{unit}</span>
+      {suffix ? (
+        <>
+          {" "}
+          <span className="load-suffix">{suffix}</span>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
+function LoadValueView({ display }: { display: LoadDisplay }) {
+  if (display.kind === "guidance") return <>{display.text}</>;
+  return (
+    <span className="load-value">
+      {display.weight ? (
+        <LoadPartView amount={display.weight.amount} unit={display.weight.unit} />
+      ) : null}
+      {display.weight && display.percentage !== undefined ? " · " : null}
+      {display.percentage !== undefined ? (
+        <LoadPartView
+          amount={display.percentage}
+          unit="%"
+          suffix={display.compactPercentage ? undefined : "de tu 1RM"}
+        />
+      ) : null}
+    </span>
+  );
+}
+
 type PlannedBlock = PlannedSession["blocks"][number];
 type ExecutionBlock = ExecutionDraft["snapshot"]["blocks"][number];
 
@@ -374,22 +498,57 @@ function BlockAccordion({
     });
   }
 
-  function changePrescriptionWeight(
+  function changePrescriptionMetric(
     plannedPrescriptionId: string,
-    actualWeightKg: number | undefined,
+    changes: Partial<PrescriptionExecutionMetric>,
   ) {
     if (!executionBlock) return;
     const current = executionBlock.metrics?.prescriptions ?? [];
-    const prescriptions =
-      actualWeightKg === undefined
-        ? current.filter((item) => item.plannedPrescriptionId !== plannedPrescriptionId)
-        : [
-            ...current.filter((item) => item.plannedPrescriptionId !== plannedPrescriptionId),
-            { plannedPrescriptionId, actualWeightKg },
-          ];
+    const existing = current.find((item) => item.plannedPrescriptionId === plannedPrescriptionId);
+    const next: PrescriptionExecutionMetric = {
+      ...existing,
+      plannedPrescriptionId,
+      ...changes,
+    };
+    if (next.actualWeight === undefined) delete next.actualWeight;
+    if (next.actualWeightKg !== undefined) delete next.actualWeightKg;
+    const prescriptions = current.filter(
+      (item) => item.plannedPrescriptionId !== plannedPrescriptionId,
+    );
+    if (next.actualWeight !== undefined || next.loadStatus !== undefined) {
+      prescriptions.push(next);
+    }
     changeExecutionBlock({
       metrics: cleanMetrics({ ...executionBlock.metrics, prescriptions }),
     });
+  }
+
+  function changePrescriptionLoadStatus(
+    plannedPrescriptionId: string,
+    status: LoadStatus,
+    prescribed: WeightValue | undefined,
+    currentWeight: WeightValue | undefined,
+  ) {
+    if (status === "rx" && prescribed) {
+      changePrescriptionMetric(plannedPrescriptionId, {
+        loadStatus: "rx",
+        actualWeight: prescribed,
+      });
+      return;
+    }
+    if (
+      status === "scaled" &&
+      prescribed &&
+      currentWeight?.amount === prescribed.amount &&
+      currentWeight.unit === prescribed.unit
+    ) {
+      changePrescriptionMetric(plannedPrescriptionId, {
+        loadStatus: "scaled",
+        actualWeight: undefined,
+      });
+      return;
+    }
+    changePrescriptionMetric(plannedPrescriptionId, { loadStatus: status });
   }
 
   function changeAmrapMetric(
@@ -465,17 +624,17 @@ function BlockAccordion({
                 const metric = prescriptionMetrics.find(
                   (entry) => entry.plannedPrescriptionId === item.id,
                 );
-                const actualWeight = metric?.actualWeightKg;
-                const prescribedWeight =
-                  typeof item.details.prescribedWeightKg === "number"
-                    ? item.details.prescribedWeightKg
-                    : undefined;
-                const loadStatus =
-                  actualWeight !== undefined && prescribedWeight !== undefined
-                    ? actualWeight === prescribedWeight
-                      ? "RX"
-                      : "Escalado"
-                    : null;
+                const actualWeight = metricActualWeight(metric);
+                const prescribed = prescribedWeight(item.details);
+                const unit = weightUnit(item.details);
+                const loadStatus: LoadStatus =
+                  metric?.loadStatus ??
+                  (actualWeight &&
+                  prescribed &&
+                  (actualWeight.amount !== prescribed.amount ||
+                    actualWeight.unit !== prescribed.unit)
+                    ? "scaled"
+                    : "rx");
                 const inputId = `load-${block.id}-${item.id}`;
                 return (
                   <div className="prescription" key={item.id}>
@@ -490,7 +649,9 @@ function BlockAccordion({
                         {entries.map((entry) => (
                           <div key={entry.key}>
                             <dt>{entry.label}</dt>
-                            <dd>{entry.value}</dd>
+                            <dd>
+                              {entry.load ? <LoadValueView display={entry.load} /> : entry.value}
+                            </dd>
                           </div>
                         ))}
                         {showMetrics && hasStructuredLoad(item.details) ? (
@@ -500,32 +661,51 @@ function BlockAccordion({
                               <MetricNumberInput
                                 id={inputId}
                                 ariaLabel={`Peso usado en ${name}`}
-                                value={actualWeight}
+                                value={actualWeight?.amount}
                                 placeholder={
-                                  prescribedWeight !== undefined ? String(prescribedWeight) : "0"
+                                  prescribed !== undefined ? String(prescribed.amount) : "0"
                                 }
-                                onCommit={(value) => changePrescriptionWeight(item.id, value)}
+                                onCommit={(value) =>
+                                  changePrescriptionMetric(item.id, {
+                                    actualWeight:
+                                      value === undefined
+                                        ? undefined
+                                        : { amount: value, unit },
+                                  })
+                                }
                               />
-                              <span className="load-unit">kg</span>
-                              {loadStatus ? (
+                              <span className="load-unit">{unit}</span>
+                              <label className="load-switch">
                                 <span
-                                  className={`load-badge load-badge-${
-                                    loadStatus === "RX" ? "rx" : "scaled"
+                                  className={`load-switch-label${
+                                    loadStatus === "rx" ? " load-switch-label-rx-active" : ""
                                   }`}
                                 >
-                                  {loadStatus}
+                                  RX
                                 </span>
-                              ) : null}
-                              {prescribedWeight !== undefined && actualWeight !== prescribedWeight ? (
-                                <button
-                                  type="button"
-                                  className="load-rx-button"
-                                  aria-label={`Usar RX en ${name}`}
-                                  onClick={() => changePrescriptionWeight(item.id, prescribedWeight)}
+                                <input
+                                  type="checkbox"
+                                  role="switch"
+                                  aria-label={`Tipo de carga en ${name}`}
+                                  checked={loadStatus === "scaled"}
+                                  onChange={(event) =>
+                                    changePrescriptionLoadStatus(
+                                      item.id,
+                                      event.target.checked ? "scaled" : "rx",
+                                      prescribed,
+                                      actualWeight,
+                                    )
+                                  }
+                                />
+                                <span className="load-switch-track" aria-hidden="true" />
+                                <span
+                                  className={`load-switch-label${
+                                    loadStatus === "scaled" ? " load-switch-label-scaled-active" : ""
+                                  }`}
                                 >
-                                  Usar RX
-                                </button>
-                              ) : null}
+                                  Escalado
+                                </span>
+                              </label>
                             </dd>
                           </div>
                         ) : null}
