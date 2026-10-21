@@ -286,6 +286,7 @@ function isFormatOnlyPrescription(item: PlannedBlock["prescriptions"][number]): 
   return keys.length > 0 && keys.every((key) => FORMAT_DETAIL_KEYS.has(key));
 }
 
+/** Fallback while older API deployments do not expose `allowsActualWeight`. */
 function hasStructuredLoad(details: Record<string, unknown>): boolean {
   return (
     prescribedWeight(details) !== undefined ||
@@ -654,7 +655,8 @@ function BlockAccordion({
                             </dd>
                           </div>
                         ))}
-                        {showMetrics && hasStructuredLoad(item.details) ? (
+                        {showMetrics &&
+                        (item.allowsActualWeight ?? hasStructuredLoad(item.details)) ? (
                           <div className="prescription-load-cell">
                             <dt>Peso usado</dt>
                             <dd className="prescription-load">

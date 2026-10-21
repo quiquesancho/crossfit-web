@@ -33,6 +33,11 @@ export type PlanningWeek = {
         movement: MovementReference | null;
         complex: ComplexReference | null;
         details: Record<string, unknown>;
+        /**
+         * Eligibility decided by the API. Optional while a deployment still
+         * omits it; the screen falls back to the structured-load check.
+         */
+        allowsActualWeight?: boolean;
         notes: string | null;
       }>;
     }>;
