@@ -675,61 +675,24 @@ function BlockAccordion({
                                 }
                               />
                               <span className="load-unit">{unit}</span>
-                              <div className="load-switch">
-                                <button
-                                  type="button"
-                                  className={`load-switch-label${
-                                    loadStatus === "rx" ? " load-switch-label-rx-active" : ""
-                                  }`}
-                                  aria-label={`Usar RX en ${name}`}
-                                  aria-pressed={loadStatus === "rx"}
-                                  onClick={() =>
-                                    changePrescriptionLoadStatus(
-                                      item.id,
-                                      "rx",
-                                      prescribed,
-                                      actualWeight,
-                                    )
-                                  }
-                                >
-                                  RX
-                                </button>
-                                <label className="load-switch-toggle">
-                                  <input
-                                    type="checkbox"
-                                    role="switch"
-                                    aria-label={`Tipo de carga en ${name}`}
-                                    checked={loadStatus === "scaled"}
-                                    onChange={(event) =>
-                                      changePrescriptionLoadStatus(
-                                        item.id,
-                                        event.target.checked ? "scaled" : "rx",
-                                        prescribed,
-                                        actualWeight,
-                                      )
-                                    }
-                                  />
-                                  <span className="load-switch-track" aria-hidden="true" />
-                                </label>
-                                <button
-                                  type="button"
-                                  className={`load-switch-label${
-                                    loadStatus === "scaled" ? " load-switch-label-scaled-active" : ""
-                                  }`}
-                                  aria-label={`Marcar escalado en ${name}`}
-                                  aria-pressed={loadStatus === "scaled"}
-                                  onClick={() =>
-                                    changePrescriptionLoadStatus(
-                                      item.id,
-                                      "scaled",
-                                      prescribed,
-                                      actualWeight,
-                                    )
-                                  }
-                                >
-                                  Escalado
-                                </button>
-                              </div>
+                              <button
+                                type="button"
+                                className={`load-status-toggle load-status-toggle-${loadStatus}`}
+                                aria-pressed={loadStatus === "rx"}
+                                aria-label={`Tipo de carga en ${name}: ${
+                                  loadStatus === "rx" ? "RX" : "Escalado"
+                                }`}
+                                onClick={() =>
+                                  changePrescriptionLoadStatus(
+                                    item.id,
+                                    loadStatus === "rx" ? "scaled" : "rx",
+                                    prescribed,
+                                    actualWeight,
+                                  )
+                                }
+                              >
+                                {loadStatus === "rx" ? "RX" : "Escalado"}
+                              </button>
                             </dd>
                           </div>
                         ) : null}
