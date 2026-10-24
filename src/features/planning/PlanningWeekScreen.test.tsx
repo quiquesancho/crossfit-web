@@ -1,12 +1,13 @@
 import { fireEvent, render, screen, waitFor, cleanup, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getOrCreateDraftForSession, saveExecutionDraft } from "../execution/drafts";
+import { findDraftForSession, getOrCreateDraftForSession, saveExecutionDraft } from "../execution/drafts";
 import type { ExecutionDraft } from "../execution/types";
 import type { PlanningWeek } from "./api";
 import { PlanningWeekScreen } from "./PlanningWeekScreen";
 
 vi.mock("../execution/drafts", () => ({
+  findDraftForSession: vi.fn().mockResolvedValue(undefined),
   getOrCreateDraftForSession: vi.fn(),
   saveExecutionDraft: vi.fn(),
 }));
@@ -379,11 +380,32 @@ describe("PlanningWeekScreen", () => {
     expect(getOrCreateDraftForSession).toHaveBeenCalledWith(week.sessions[0]);
   });
 
+  it("hydrates a saved draft when the planned session is opened", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(findDraftForSession).mockResolvedValueOnce(createDraft());
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    expect(findDraftForSession).toHaveBeenCalledWith("session-id");
+  });
+
+  it("opens the focused session passed by the records screen", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" focusSessionId="session-id" />);
+
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    const details = screen.getByText("Power clean y AMRAP").closest("details");
+    expect(details?.hasAttribute("open")).toBe(true);
+  });
+
   it("stores personal block notes in the offline draft", async () => {
     const draft = createDraft();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(draft);
-    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
@@ -410,7 +432,7 @@ describe("PlanningWeekScreen", () => {
   it("stores the selected block status in the offline draft", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
-    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
@@ -448,7 +470,7 @@ describe("PlanningWeekScreen", () => {
   it("stores the actual weight used for a percentage-based prescription", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
-    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
@@ -501,7 +523,7 @@ describe("PlanningWeekScreen", () => {
   it("switches a load between RX and scaled", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
-    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
@@ -608,7 +630,7 @@ describe("PlanningWeekScreen", () => {
       vi.fn().mockResolvedValue(new Response(JSON.stringify(eligibilityWeek), { status: 200 })),
     );
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
-    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
@@ -628,7 +650,7 @@ describe("PlanningWeekScreen", () => {
   it("stores AMRAP rounds and repetitions from the current round", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
-    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
@@ -664,7 +686,7 @@ describe("PlanningWeekScreen", () => {
   it("hides load and AMRAP fields when the block is marked without metrics", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
-    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
@@ -689,7 +711,7 @@ describe("PlanningWeekScreen", () => {
   it("marks a completed block as done without metrics", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
-    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
@@ -730,7 +752,7 @@ describe("PlanningWeekScreen", () => {
   it("marks a partial block as done without metrics", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
-    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
@@ -756,7 +778,7 @@ describe("PlanningWeekScreen", () => {
   it("does not offer metrics controls for a skipped block", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
-    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
@@ -784,7 +806,7 @@ describe("PlanningWeekScreen", () => {
       status: "completed_without_metric",
     };
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(legacyDraft);
-    vi.mocked(saveExecutionDraft).mockResolvedValue(undefined);
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
     render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));

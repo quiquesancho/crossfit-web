@@ -163,3 +163,78 @@ button { font: inherit; }
   .block-toggle .block-expand { grid-column: 3; grid-row: 1; }
   .plan-summary { padding: 1rem; }
 }
+
+/* Tabs and execution records */
+.app-tabs { display: inline-flex; gap: .3rem; padding: .3rem; margin-bottom: 1.5rem; border: 1px solid #d5dbd2; border-radius: .8rem; background: #e8ece5; }
+.app-tabs button { min-height: 2.4rem; padding: .5rem .9rem; border: 0; border-radius: .55rem; color: #3f4d42; background: transparent; font-weight: 750; cursor: pointer; }
+.app-tabs button:hover { background: #dde4da; }
+.app-tabs button[aria-pressed="true"] { color: #f7faf5; background: #2c5536; }
+.app-tabs button:focus-visible { outline: 3px solid #b9d1bc; outline-offset: 2px; }
+
+.primary-button { padding: .65rem .9rem; border: 0; border-radius: .6rem; color: #f7faf5; background: #2c5536; font-weight: 800; cursor: pointer; }
+.primary-button:hover { background: #244a2e; }
+.primary-button:focus-visible { outline: 3px solid #c7d9c9; outline-offset: 2px; }
+.link-button { padding: .35rem .2rem; border: 0; color: #4c6653; background: none; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.link-button:hover { color: #244a2e; }
+.link-button:focus-visible { outline: 3px solid #c7d9c9; outline-offset: 2px; }
+.danger-button { padding: .5rem .75rem; border: 1px solid #d7a49e; border-radius: .5rem; color: #812c24; background: #fff5f3; font-weight: 800; cursor: pointer; }
+.danger-button:focus-visible { outline: 3px solid #e3bdb8; outline-offset: 2px; }
+
+.record-list { display: grid; gap: .8rem; margin: 0; padding: 0; list-style: none; }
+.record-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6rem 1rem; padding: 1rem 1.2rem; border: 1px solid #dbe0d8; border-radius: 1rem; background: #fff; }
+.record-main { min-width: 0; }
+.record-main h3 { margin: 0 0 .25rem; }
+.record-meta { display: flex; gap: .25rem .85rem; flex-wrap: wrap; margin: 0; color: #657267; font-size: .78rem; }
+.record-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.record-delete-confirm, .draft-delete-confirm { display: inline-flex; align-items: center; gap: .6rem; flex-wrap: wrap; color: #7c3a33; font-size: .82rem; font-weight: 700; }
+
+.sync-badge { align-self: start; padding: .3rem .55rem; border-radius: 999px; font-size: .72rem; font-weight: 800; white-space: nowrap; }
+.sync-pending { color: #89601f; background: #f5ead5; }
+.sync-synchronized { color: #2f6840; background: #e0eee2; }
+.sync-error { color: #8b3c35; background: #f5e1df; }
+
+.free-training-form { display: grid; grid-template-columns: minmax(0, 1fr) 12rem; gap: .9rem; align-items: end; margin-bottom: 1.25rem; padding: 1rem 1.2rem; border: 1px solid #c8d5c6; border-radius: 1rem; background: #fbfff8; }
+.free-training-form > div:first-child, .free-training-actions { grid-column: 1 / -1; }
+.free-training-form h3 { margin: .15rem 0 0; }
+.free-training-form label { display: grid; gap: .3rem; }
+.free-training-form label span { color: #34463a; font-size: .78rem; font-weight: 800; }
+.free-training-form input { padding: .55rem .65rem; border: 1px solid #cbd5c9; border-radius: .5rem; background: #fff; font: inherit; }
+.free-training-form input:focus { border-color: #64806a; outline: 3px solid #dce8dc; }
+.free-training-actions { display: flex; align-items: center; gap: .75rem; }
+
+.draft-editor-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; }
+.draft-editor h2 { margin: 0 0 1.25rem; font-size: clamp(1.6rem, 4vw, 2.4rem); letter-spacing: -.04em; }
+.draft-editor-fields { display: grid; grid-template-columns: minmax(0, 1fr) 12rem; gap: .9rem; padding: 1rem 1.2rem; border: 1px solid #dbe0d8; border-radius: 1rem; background: #fff; }
+.draft-editor-fields label { display: grid; gap: .35rem; }
+.draft-editor-fields label > span, .draft-block label > span, .draft-add-block label > span { color: #34463a; font-size: .78rem; font-weight: 800; }
+.draft-editor-fields input, .draft-editor-fields textarea, .draft-block input, .draft-block select, .draft-add-block select { width: 100%; padding: .55rem .65rem; border: 1px solid #cbd5c9; border-radius: .5rem; background: #fff; font: inherit; }
+.draft-editor-fields input:focus, .draft-editor-fields textarea:focus, .draft-block input:focus, .draft-block select:focus, .draft-add-block select:focus { border-color: #64806a; outline: 3px solid #dce8dc; }
+.draft-editor-fields textarea { resize: vertical; }
+.draft-editor-note { grid-column: 1 / -1; }
+.draft-editor-blocks { margin-top: 1.25rem; }
+.draft-editor-blocks-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; }
+.draft-editor-blocks-heading h3 { margin: 0; }
+.draft-editor-blocks-heading span { padding: .2rem .55rem; border-radius: 999px; color: #33543b; background: #e4eee3; font-size: .75rem; font-weight: 800; }
+.draft-editor-empty { text-align: left; }
+.draft-block-list { display: grid; gap: .8rem; margin: 0; padding: 0; list-style: none; }
+.draft-block { display: grid; gap: .9rem; padding: 1rem; border: 1px solid #dce3d9; border-radius: .9rem; background: #fff; }
+.draft-block-heading { display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto; align-items: end; gap: .75rem; }
+.draft-block-type { display: grid; gap: .3rem; }
+.draft-block-remove { align-self: end; }
+.draft-block-title { display: grid; gap: .35rem; }
+.draft-editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #e2e7df; }
+.draft-editor-save { margin: 0; color: #657267; font-size: .8rem; font-weight: 700; }
+.draft-add-block { display: flex; align-items: end; gap: .75rem; margin-top: 1rem; padding: .9rem 1rem; border: 1px dashed #c3d0c1; border-radius: .8rem; background: #fafcf8; }
+.draft-add-block label { display: grid; gap: .35rem; flex: 1; min-width: 0; }
+.draft-editor-hint { margin: .75rem 0 0; color: #737e74; font-size: .82rem; }
+
+@media (max-width: 680px) {
+  .app-tabs { display: flex; width: 100%; }
+  .app-tabs button { flex: 1; }
+  .free-training-form, .draft-editor-fields { grid-template-columns: 1fr; }
+  .record-card { grid-template-columns: minmax(0, 1fr); }
+  .sync-badge { justify-self: start; }
+  .draft-block-heading { grid-template-columns: 2rem minmax(0, 1fr); }
+  .draft-block-remove { grid-column: 2; justify-self: start; }
+  .draft-editor-footer, .draft-add-block { align-items: stretch; flex-direction: column; }
+}
