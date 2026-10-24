@@ -811,6 +811,7 @@ function SessionCard({
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(initiallyOpen);
   const hydrationRequested = useRef(false);
+  const latestDraft = useRef<ExecutionDraft | null>(null);
 
   useEffect(() => {
     if (!expanded || hydrationRequested.current) return;
@@ -818,8 +819,9 @@ function SessionCard({
     let active = true;
     findDraftForSession(session.id)
       .then((existing) => {
-        if (!active || !existing) return;
-        setDraft((current) => current ?? existing);
+        if (!active || !existing || latestDraft.current) return;
+        latestDraft.current = existing;
+        setDraft(existing);
         setDraftState((current) => (current === "idle" ? "saved" : current));
       })
       .catch(() => {
@@ -834,6 +836,7 @@ function SessionCard({
     setDraftState("saving");
     try {
       const executionDraft = await getOrCreateDraftForSession(session);
+      latestDraft.current = executionDraft;
       setDraft(executionDraft);
       setDraftState("saved");
     } catch {
@@ -848,6 +851,7 @@ function SessionCard({
       updatedAt: new Date().toISOString(),
       lastError: undefined,
     };
+    latestDraft.current = pendingDraft;
     setDraft(pendingDraft);
     try {
       await saveExecutionDraft(pendingDraft);
@@ -858,13 +862,16 @@ function SessionCard({
   }
 
   async function synchronizeDraft() {
-    if (!draft) return;
+    const current = latestDraft.current;
+    if (!current) return;
     setSyncing(true);
     setSyncError(null);
     try {
-      const persisted = await saveExecutionDraft(draft);
+      const persisted = await saveExecutionDraft(current);
+      latestDraft.current = persisted;
       setDraft(persisted);
       const synchronized = await synchronizeExecutionDraft(persisted.id);
+      latestDraft.current = synchronized;
       setDraft(synchronized);
       setDraftState("saved");
     } catch (error) {
@@ -872,12 +879,14 @@ function SessionCard({
         error instanceof Error ? error.message : "No se pudo sincronizar la sesión.";
       setSyncError(message);
       setDraftState("error");
-      setDraft({
-        ...draft,
+      const failed: ExecutionDraft = {
+        ...(latestDraft.current ?? current),
         syncStatus: "error",
         lastError: message,
         updatedAt: new Date().toISOString(),
-      });
+      };
+      latestDraft.current = failed;
+      setDraft(failed);
     } finally {
       setSyncing(false);
     }
