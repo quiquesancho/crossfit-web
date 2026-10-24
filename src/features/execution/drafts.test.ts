@@ -5,11 +5,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PlannedSession } from "../planning/api";
 import { CrossfitDatabase } from "./database";
 import {
+  addDraftBlock,
   createExecutionDraft,
+  createFreeTrainingDraft,
+  deleteExecutionDraft,
+  findDraftForSession,
   getOrCreateDraftForSession,
+  listExecutionDrafts,
   listPendingExecutionDrafts,
+  removeDraftBlock,
   saveExecutionDraft,
   synchronizeExecutionDraft,
+  updateDraftBlock,
 } from "./drafts";
 import { isUuidV7 } from "./uuid";
 
@@ -131,5 +138,108 @@ describe("offline execution drafts", () => {
   it("reports an unknown draft before contacting the API", async () => {
     const database = testDatabase();
     await expect(synchronizeExecutionDraft("missing", database)).rejects.toThrow("not found");
+  });
+});
+
+describe("execution draft library", () => {
+  it("finds a saved draft without creating another one", async () => {
+    const database = testDatabase();
+
+    await expect(findDraftForSession(session.id, database)).resolves.toBeUndefined();
+
+    const draft = await getOrCreateDraftForSession(session, database);
+
+    await expect(findDraftForSession(session.id, database)).resolves.toEqual(draft);
+    expect(await database.executionDrafts.count()).toBe(1);
+  });
+
+  it("ignores completed executions when looking for a draft", async () => {
+    const database = testDatabase();
+    const draft = createExecutionDraft(session);
+    await database.executionDrafts.add({
+      ...draft,
+      snapshot: { ...draft.snapshot, status: "completed" },
+    });
+
+    await expect(findDraftForSession(session.id, database)).resolves.toBeUndefined();
+  });
+
+  it("creates a free training draft without a planned session", () => {
+    const draft = createFreeTrainingDraft("  ", "2026-10-22", new Date("2026-10-22T08:00:00Z"));
+
+    expect(isUuidV7(draft.id)).toBe(true);
+    expect(draft.title).toBe("Entrenamiento libre");
+    expect(draft.plannedSessionId).toBeUndefined();
+    expect(draft.executionDate).toBe("2026-10-22");
+    expect(draft.snapshot).toEqual({
+      baseRevision: 0,
+      executionDate: "2026-10-22",
+      status: "draft",
+      blocks: [],
+    });
+  });
+
+  it("adds, updates and removes blocks keeping positions contiguous", () => {
+    const draft = createFreeTrainingDraft("Libre", "2026-10-22");
+    const withStrength = addDraftBlock(draft, "type-strength", "Fuerza");
+    const withWod = addDraftBlock(withStrength, "type-wod", "WOD");
+
+    expect(withWod.snapshot.blocks.map((block) => [block.position, block.title])).toEqual([
+      [1, "Fuerza"],
+      [2, "WOD"],
+    ]);
+    expect(isUuidV7(withWod.snapshot.blocks[0]!.id)).toBe(true);
+
+    const updated = updateDraftBlock(withWod, withWod.snapshot.blocks[1]!.id, {
+      status: "partial",
+      withoutMetrics: true,
+      notes: "Corté la última ronda.",
+    });
+    expect(updated.snapshot.blocks[1]).toEqual(
+      expect.objectContaining({
+        status: "partial",
+        withoutMetrics: true,
+        notes: "Corté la última ronda.",
+      }),
+    );
+
+    const removed = removeDraftBlock(updated, withWod.snapshot.blocks[0]!.id);
+    expect(removed.snapshot.blocks).toEqual([
+      expect.objectContaining({ position: 1, title: "WOD" }),
+    ]);
+  });
+
+  it("lists stored drafts from the most recently updated", async () => {
+    const database = testDatabase();
+    const older = {
+      ...createFreeTrainingDraft("Antigua", "2026-10-20"),
+      updatedAt: "2026-10-20T10:00:00.000Z",
+    };
+    const newer = {
+      ...createFreeTrainingDraft("Reciente", "2026-10-21"),
+      updatedAt: "2026-10-21T10:00:00.000Z",
+    };
+    await database.executionDrafts.bulkAdd([older, newer]);
+
+    await expect(listExecutionDrafts(database)).resolves.toEqual([
+      expect.objectContaining({ title: "Reciente" }),
+      expect.objectContaining({ title: "Antigua" }),
+    ]);
+  });
+
+  it("returns the saved draft and can delete it", async () => {
+    const database = testDatabase();
+    const draft = createFreeTrainingDraft("Libre", "2026-10-22");
+    await database.executionDrafts.add(draft);
+
+    const saved = await saveExecutionDraft(
+      { ...draft, snapshot: { ...draft.snapshot, generalNote: "Nota" } },
+      database,
+    );
+    expect(saved.snapshot.generalNote).toBe("Nota");
+    expect(saved.syncStatus).toBe("pending");
+
+    await deleteExecutionDraft(draft.id, database);
+    await expect(database.executionDrafts.count()).resolves.toBe(0);
   });
 });

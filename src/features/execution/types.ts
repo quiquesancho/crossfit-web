@@ -47,6 +47,13 @@ export type SessionExecutionSnapshot = {
   }>;
 };
 
+export type DraftBlock = SessionExecutionSnapshot["blocks"][number];
+
+export type DraftBlockChanges = Partial<
+  Pick<DraftBlock, "blockTypeId" | "title" | "status" | "withoutMetrics" | "notes">
+>;
+
+
 export type ExecutionSyncResult = {
   id: string;
   revision: number;
@@ -57,6 +64,8 @@ export type ExecutionSyncResult = {
 
 export type ExecutionDraft = {
   id: string;
+  /** Local label for the session. Planned drafts copy the planned session title. */
+  title?: string;
   plannedSessionId?: string;
   executionDate: string;
   snapshot: SessionExecutionSnapshot;

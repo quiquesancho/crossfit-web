@@ -14,6 +14,18 @@ export function currentWeekStart(now = new Date()): string {
     .join("-");
 }
 
+export function todayIsoDate(now = new Date()): string {
+  return [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+    .map((part, index) => String(part).padStart(index === 0 ? 4 : 2, "0"))
+    .join("-");
+}
+
+export function weekStartOf(value: string): string {
+  const date = dateFromIso(value);
+  date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+  return toIsoDate(date);
+}
+
 export function shiftWeek(weekStart: string, weeks: number): string {
   const date = dateFromIso(weekStart);
   date.setUTCDate(date.getUTCDate() + weeks * 7);

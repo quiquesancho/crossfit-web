@@ -1,9 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { getOrCreateDraftForSession, saveExecutionDraft } from "../execution/drafts";
+import { findDraftForSession, getOrCreateDraftForSession, saveExecutionDraft } from "../execution/drafts";
+import {
+  BLOCK_STATUS_LABELS,
+  BLOCK_STATUS_OPTIONS,
+  blockStatusLabel,
+  effectiveBlockStatus,
+  hasNoMetrics,
+} from "../execution/status";
 import type {
   BlockExecutionMetrics,
-  BlockExecutionStatus,
   ExecutionDraft,
   LoadStatus,
   PrescriptionExecutionMetric,
@@ -64,24 +70,6 @@ type LoadDisplay =
     };
 
 type DetailEntry = { key: string; label: string; value: string; load?: LoadDisplay };
-
-const BLOCK_STATUS_OPTIONS: Array<{
-  value: Exclude<BlockExecutionStatus, "draft" | "completed_without_metric" | "abandoned">;
-  label: string;
-}> = [
-  { value: "completed", label: "Realizado" },
-  { value: "partial", label: "Parcial" },
-  { value: "skipped", label: "Omitido" },
-];
-
-const BLOCK_STATUS_LABELS: Record<BlockExecutionStatus, string> = {
-  draft: "Sin registrar",
-  completed: "Realizado",
-  completed_without_metric: "Realizado sin métricas",
-  partial: "Parcial",
-  skipped: "Omitido",
-  abandoned: "Abandonado",
-};
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds} s`;
@@ -439,22 +427,6 @@ function LoadValueView({ display }: { display: LoadDisplay }) {
 
 type PlannedBlock = PlannedSession["blocks"][number];
 type ExecutionBlock = ExecutionDraft["snapshot"]["blocks"][number];
-
-function effectiveBlockStatus(block: ExecutionBlock): ExecutionBlock["status"] {
-  return block.status === "completed_without_metric" ? "completed" : block.status;
-}
-
-function hasNoMetrics(block: ExecutionBlock): boolean {
-  return block.withoutMetrics ?? block.status === "completed_without_metric";
-}
-
-function blockStatusLabel(block: ExecutionBlock): string {
-  const status = effectiveBlockStatus(block);
-  if (hasNoMetrics(block) && (status === "completed" || status === "partial")) {
-    return `${BLOCK_STATUS_LABELS[status]} sin métricas`;
-  }
-  return BLOCK_STATUS_LABELS[status];
-}
 
 function BlockAccordion({
   block,
@@ -819,10 +791,36 @@ function BlockAccordion({
   );
 }
 
-function SessionCard({ session }: { session: PlannedSession }) {
+function SessionCard({
+  session,
+  initiallyOpen = false,
+}: {
+  session: PlannedSession;
+  initiallyOpen?: boolean;
+}) {
   const [draftState, setDraftState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [draft, setDraft] = useState<ExecutionDraft | null>(null);
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(initiallyOpen);
+  const hydrationRequested = useRef(false);
+
+  useEffect(() => {
+    if (!expanded || hydrationRequested.current) return;
+    hydrationRequested.current = true;
+    let active = true;
+    findDraftForSession(session.id)
+      .then((existing) => {
+        if (!active || !existing) return;
+        setDraft((current) => current ?? existing);
+        setDraftState((current) => (current === "idle" ? "saved" : current));
+      })
+      .catch(() => {
+        // Hydration is best effort; the user can still create the draft manually.
+      });
+    return () => {
+      active = false;
+    };
+  }, [expanded, session.id]);
 
   async function startExecution() {
     setDraftState("saving");
@@ -854,8 +852,11 @@ function SessionCard({ session }: { session: PlannedSession }) {
   return (
     <details
       className="session-card"
+      open={expanded}
       onToggle={(event) => {
-        if (!event.currentTarget.open) setOpenBlockId(null);
+        const isOpen = event.currentTarget.open;
+        setExpanded(isOpen);
+        if (!isOpen) setOpenBlockId(null);
       }}
     >
       <summary className="session-heading">
@@ -903,7 +904,13 @@ function SessionCard({ session }: { session: PlannedSession }) {
   );
 }
 
-export function PlanningWeekScreen({ initialWeekStart }: { initialWeekStart?: string }) {
+export function PlanningWeekScreen({
+  initialWeekStart,
+  focusSessionId,
+}: {
+  initialWeekStart?: string;
+  focusSessionId?: string;
+}) {
   const thisWeek = currentWeekStart();
   const [weekStart, setWeekStart] = useState(initialWeekStart ?? thisWeek);
   const [state, setState] = useState<State>({ status: "loading" });
@@ -966,7 +973,11 @@ export function PlanningWeekScreen({ initialWeekStart }: { initialWeekStart?: st
           {state.week.sessions.length > 0 ? (
             <div className="session-list">
               {state.week.sessions.map((session) => (
-                <SessionCard key={session.id} session={session} />
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  initiallyOpen={session.id === focusSessionId}
+                />
               ))}
             </div>
           ) : (

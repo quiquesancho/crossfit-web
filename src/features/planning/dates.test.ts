@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { currentWeekStart, formatSessionDate, formatWeekRange, shiftWeek } from "./dates";
+import {
+  currentWeekStart,
+  formatSessionDate,
+  formatWeekRange,
+  shiftWeek,
+  todayIsoDate,
+  weekStartOf,
+} from "./dates";
 
 describe("planning dates", () => {
   it("finds Monday for the current local week", () => {
@@ -15,5 +22,16 @@ describe("planning dates", () => {
   it("formats week ranges and session dates in Spanish", () => {
     expect(formatWeekRange("2026-10-19")).toMatch(/19 oct.*25 oct/i);
     expect(formatSessionDate("2026-10-20")).toMatch(/martes.*20.*octubre/i);
+  });
+
+  it("finds the Monday of the week containing a date", () => {
+    expect(weekStartOf("2026-10-22")).toBe("2026-10-19");
+    expect(weekStartOf("2026-10-19")).toBe("2026-10-19");
+    expect(weekStartOf("2026-10-25")).toBe("2026-10-19");
+    expect(weekStartOf("2026-10-26")).toBe("2026-10-26");
+  });
+
+  it("formats today as a local ISO date", () => {
+    expect(todayIsoDate(new Date(2026, 9, 22, 23, 30))).toBe("2026-10-22");
   });
 });
