@@ -211,6 +211,53 @@ function loadValues(): string[] {
   });
 }
 
+const catalogResponses: Record<string, unknown> = {
+  "/catalogs/recovery": {
+    entries: [
+      { id: "recovery-good", code: "good", description: "Buena", displayOrder: 4 },
+    ],
+  },
+  "/catalogs/technique-quality": {
+    entries: [
+      { id: "technique-good", code: "good", description: "Buena", displayOrder: 3 },
+    ],
+  },
+  "/catalogs/limitation": {
+    entries: [
+      { id: "limitation-technique", code: "technique", description: "Técnica", displayOrder: 1 },
+    ],
+  },
+  "/catalogs/substitution-reason": {
+    entries: [
+      { id: "reason-equipment", code: "equipment", description: "Material no disponible", displayOrder: 2 },
+    ],
+  },
+  "/catalog/movements": {
+    movements: [
+      { id: "burpee-id", code: "burpee", name: "Burpee", familyCode: "gymnastics" },
+      { id: "row-id", code: "row", name: "Remo", familyCode: "monostructural" },
+    ],
+  },
+};
+
+function stubApi(fetchMock?: ReturnType<typeof vi.fn>) {
+  const mock =
+    fetchMock ??
+    vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      const catalogPath = Object.keys(catalogResponses).find((path) => url.includes(path));
+      const payload = catalogPath ? catalogResponses[catalogPath] : week;
+      return Promise.resolve(
+        new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    });
+  vi.stubGlobal("fetch", mock);
+  return mock;
+}
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -861,5 +908,123 @@ describe("PlanningWeekScreen", () => {
         }),
       }),
     );
+  });
+
+  it("stores session feelings in the offline draft", async () => {
+    stubApi();
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
+
+    fireEvent.click(screen.getByText("Sensaciones y RPE"));
+    const rpe = await screen.findByLabelText("RPE de la sesión");
+    fireEvent.change(rpe, { target: { value: "8" } });
+    fireEvent.blur(rpe);
+    fireEvent.change(await screen.findByLabelText("Recuperación"), {
+      target: { value: "recovery-good" },
+    });
+    fireEvent.change(screen.getByLabelText("Nota de la sesión"), {
+      target: { value: "Buenas sensaciones." },
+    });
+
+    await waitFor(() =>
+      expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          snapshot: expect.objectContaining({
+            feeling: expect.objectContaining({
+              rpe: 8,
+              recoveryId: "recovery-good",
+              note: "Buenas sensaciones.",
+            }),
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("stores the RPE of a completed block", async () => {
+    stubApi();
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+
+    const rpe = await screen.findByLabelText("RPE del bloque");
+    fireEvent.change(rpe, { target: { value: "9" } });
+    fireEvent.blur(rpe);
+
+    await waitFor(() =>
+      expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          snapshot: expect.objectContaining({
+            blocks: expect.arrayContaining([
+              expect.objectContaining({
+                plannedBlockId: "block-id",
+                feeling: expect.objectContaining({ rpe: 9 }),
+              }),
+            ]),
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("stores a movement substitution in the offline draft", async () => {
+    stubApi();
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+
+    const prescription = screen
+      .getAllByRole("button", { name: "Sustituir movimiento" })[0]!
+      .closest(".prescription") as HTMLElement;
+    fireEvent.click(within(prescription).getByRole("button", { name: "Sustituir movimiento" }));
+
+    const movement = await screen.findByLabelText("Movimiento realizado en Power clean");
+    fireEvent.change(movement, { target: { value: "burpee-id" } });
+    fireEvent.change(screen.getByLabelText("Motivo de la sustitución en Power clean"), {
+      target: { value: "reason-equipment" },
+    });
+    fireEvent.change(screen.getByLabelText("Nota de la sustitución en Power clean"), {
+      target: { value: "No había barra libre." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar sustitución" }));
+
+    await waitFor(() =>
+      expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          snapshot: expect.objectContaining({
+            blocks: expect.arrayContaining([
+              expect.objectContaining({
+                plannedBlockId: "block-id",
+                substitutions: [
+                  expect.objectContaining({
+                    plannedPrescriptionId: "prescription-id",
+                    actualMovementId: "burpee-id",
+                    reasonId: "reason-equipment",
+                    note: "No había barra libre.",
+                  }),
+                ],
+              }),
+            ]),
+          }),
+        }),
+      ),
+    );
+    expect(screen.getByText("Sustitución registrada")).toBeDefined();
   });
 });

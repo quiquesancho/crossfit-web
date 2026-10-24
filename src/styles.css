@@ -150,6 +150,37 @@ button { font: inherit; }
 }
 .block-registration-prompt { margin: 0; color: #737e74; font-size: .82rem; }
 
+/* Feelings and substitutions */
+.feeling-panel { margin: 0 1rem 1rem; border: 1px solid #dbe0d8; border-radius: .8rem; background: #fff; }
+.feeling-panel summary { padding: .7rem .9rem; color: #34463a; cursor: pointer; font-size: .82rem; font-weight: 800; }
+.feeling-panel summary:focus-visible { outline: 3px solid #c7d9c9; outline-offset: 2px; }
+.feeling-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .8rem; padding: 0 .9rem .9rem; }
+.feeling-field { display: grid; gap: .35rem; align-content: start; }
+.feeling-field > span { color: #34463a; font-size: .78rem; font-weight: 800; }
+.feeling-field input, .feeling-field select, .feeling-field textarea { width: 100%; padding: .5rem .55rem; border: 1px solid #cbd5c9; border-radius: .5rem; color: #263329; background: #fff; font: inherit; font-size: .88rem; }
+.feeling-field input:focus, .feeling-field select:focus, .feeling-field textarea:focus { border-color: #64806a; outline: 3px solid #dce8dc; }
+.feeling-field-number input { max-width: 6rem; }
+.feeling-field-note { grid-column: 1 / -1; }
+.feeling-hint { grid-column: 1 / -1; margin: 0; color: #737e74; font-size: .76rem; line-height: 1.4; }
+.block-feeling { margin-top: 1rem; }
+.block-feeling .feeling-field { max-width: 8rem; }
+.substitution-editor { margin-top: .65rem; padding: .75rem .85rem; border: 1px dashed #b9cbb9; border-radius: .6rem; background: #fff; }
+.substitution-heading { margin: 0 0 .55rem; color: #34463a; font-size: .82rem; font-weight: 800; }
+.substitution-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .65rem; }
+.substitution-fields label { display: grid; gap: .3rem; align-content: start; }
+.substitution-fields label > span { color: #34463a; font-size: .78rem; font-weight: 800; }
+.substitution-fields select, .substitution-fields textarea { width: 100%; padding: .48rem .55rem; border: 1px solid #cbd5c9; border-radius: .5rem; color: #263329; background: #fff; font: inherit; font-size: .86rem; }
+.substitution-fields select:focus, .substitution-fields textarea:focus { border-color: #64806a; outline: 3px solid #dce8dc; }
+.substitution-note { grid-column: 1 / -1; }
+.substitution-actions { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; margin-top: .65rem; }
+.prescription-substitution-summary { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-top: .55rem; color: #59655b; font-size: .78rem; }
+@media (max-width: 560px) {
+  .feeling-label { margin-inline: .75rem; }
+  .feeling-panel { margin-inline: .75rem; }
+  .feeling-fields { grid-template-columns: 1fr 1fr; }
+  .feeling-field-note { grid-column: 1 / -1; }
+}
+
 @media (max-width: 680px) {
   .app-shell { width: min(100% - 1.2rem, 1120px); padding-top: 1.25rem; }
   .week-toolbar { align-items: stretch; flex-direction: column; }
