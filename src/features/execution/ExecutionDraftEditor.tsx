@@ -6,6 +6,7 @@ import {
   deleteExecutionDraft,
   removeDraftBlock,
   saveExecutionDraft,
+  synchronizeExecutionDraft,
   updateDraftBlock,
 } from "./drafts";
 import {
@@ -37,6 +38,8 @@ export function ExecutionDraftEditor({
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [blockTypeId, setBlockTypeId] = useState(blockTypes[0]?.id ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   function commit(update: (current: ExecutionDraft) => ExecutionDraft) {
     const next = update(latestDraft.current);
@@ -89,16 +92,67 @@ export function ExecutionDraftEditor({
     }
   }
 
+  async function synchronize() {
+    if (latestDraft.current.snapshot.blocks.length === 0) {
+      setSyncError("Añade al menos un bloque antes de sincronizar.");
+      return;
+    }
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const persisted = await saveExecutionDraft(latestDraft.current);
+      latestDraft.current = persisted;
+      setCurrent(persisted);
+      onSaved(persisted);
+      const synchronized = await synchronizeExecutionDraft(persisted.id);
+      latestDraft.current = synchronized;
+      setCurrent(synchronized);
+      onSaved(synchronized);
+      setSaveState("saved");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudo sincronizar el borrador.";
+      setSyncError(message);
+      const failed: ExecutionDraft = {
+        ...latestDraft.current,
+        syncStatus: "error",
+        lastError: message,
+        updatedAt: new Date().toISOString(),
+      };
+      latestDraft.current = failed;
+      setCurrent(failed);
+      onSaved(failed);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   return (
     <section aria-labelledby="draft-editor-title" className="draft-editor">
       <div className="draft-editor-toolbar">
         <button type="button" className="link-button" onClick={onClose}>
           ← Mis registros
         </button>
-        <span className={`sync-badge sync-${current.syncStatus}`}>
-          {SYNC_STATUS_LABELS[current.syncStatus]}
-        </span>
+        <div className="draft-editor-sync">
+          <span className={`sync-badge sync-${current.syncStatus}`}>
+            {SYNC_STATUS_LABELS[current.syncStatus]}
+          </span>
+          <button
+            type="button"
+            className="primary-button"
+            disabled={syncing || current.snapshot.blocks.length === 0}
+            onClick={() => void synchronize()}
+          >
+            {syncing ? "Sincronizando…" : "Sincronizar"}
+          </button>
+        </div>
       </div>
+
+      {syncError ? (
+        <p className="state-panel state-error" role="alert">
+          {syncError}
+        </p>
+      ) : null}
 
       <p className="eyebrow">Borrador local</p>
       <h2 id="draft-editor-title">{current.title || "Entrenamiento sin título"}</h2>

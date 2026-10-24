@@ -203,6 +203,7 @@ button { font: inherit; }
 .free-training-actions { display: flex; align-items: center; gap: .75rem; }
 
 .draft-editor-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; }
+.draft-editor-sync { display: flex; align-items: center; gap: .6rem; }
 .draft-editor h2 { margin: 0 0 1.25rem; font-size: clamp(1.6rem, 4vw, 2.4rem); letter-spacing: -.04em; }
 .draft-editor-fields { display: grid; grid-template-columns: minmax(0, 1fr) 12rem; gap: .9rem; padding: 1rem 1.2rem; border: 1px solid #dbe0d8; border-radius: 1rem; background: #fff; }
 .draft-editor-fields label { display: grid; gap: .35rem; }

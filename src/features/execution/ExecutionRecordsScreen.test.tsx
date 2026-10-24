@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PlannedSession } from "../planning/api";
 import { crossfitDatabase } from "./database";
-import { createExecutionDraft, createFreeTrainingDraft } from "./drafts";
+import {
+  addDraftBlock,
+  createExecutionDraft,
+  createFreeTrainingDraft,
+} from "./drafts";
 import { ExecutionRecordsScreen } from "./ExecutionRecordsScreen";
 
 const blockTypes = [
@@ -133,5 +137,59 @@ describe("ExecutionRecordsScreen", () => {
 
     await waitFor(() => expect(screen.getByText("Todavía no hay registros")).toBeDefined());
     await expect(crossfitDatabase.executionDrafts.count()).resolves.toBe(0);
+  });
+
+  it("synchronizes a pending draft from the records list", async () => {
+    const free = addDraftBlock(
+      createFreeTrainingDraft("Sincronizable", "2026-10-22"),
+      blockTypes[1]!.id,
+      "Fuerza",
+    );
+    await crossfitDatabase.executionDrafts.add(free);
+    const fetchMock = vi.fn().mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: free.id,
+              revision: 1,
+              status: "draft",
+              updatedAt: "2026-10-22T10:05:00.000Z",
+              result: "persisted",
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ entries: blockTypes }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ExecutionRecordsScreen onOpenPlannedDraft={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Sincronizable")).toBeDefined());
+
+    fireEvent.click(await screen.findByRole("button", { name: "Sincronizar Sincronizable" }));
+
+    await waitFor(() => expect(screen.getByText("Sincronizado")).toBeDefined());
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`/session-executions/${free.id}`),
+      expect.objectContaining({ method: "PUT" }),
+    );
+  });
+
+  it("disables synchronization for a draft without blocks", async () => {
+    const free = createFreeTrainingDraft("Vacío", "2026-10-22");
+    await crossfitDatabase.executionDrafts.add(free);
+
+    render(<ExecutionRecordsScreen onOpenPlannedDraft={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Vacío")).toBeDefined());
+
+    const button = await screen.findByRole("button", { name: "Sincronizar Vacío" });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
   });
 });
