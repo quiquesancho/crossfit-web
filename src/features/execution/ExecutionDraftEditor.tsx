@@ -81,8 +81,12 @@ export function ExecutionDraftEditor({
   }
 
   async function deleteDraft() {
-    await deleteExecutionDraft(current.id);
-    onDeleted();
+    try {
+      await deleteExecutionDraft(current.id);
+      onDeleted();
+    } catch {
+      setSaveState("error");
+    }
   }
 
   return (
