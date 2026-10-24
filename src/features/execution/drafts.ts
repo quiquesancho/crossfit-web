@@ -1,7 +1,7 @@
 import type { PlannedSession } from "../planning/api";
 import { synchronizeExecution } from "./api";
 import { crossfitDatabase, type CrossfitDatabase } from "./database";
-import type { DraftBlock, DraftBlockChanges, ExecutionDraft } from "./types";
+import type { DraftBlock, DraftBlockChanges, ExecutionDraft, SessionExecutionSnapshot } from "./types";
 import { createUuidV7 } from "./uuid";
 
 export function createExecutionDraft(session: PlannedSession, now = new Date()): ExecutionDraft {
@@ -154,6 +154,47 @@ export function removeDraftBlock(draft: ExecutionDraft, blockId: string): Execut
   };
 }
 
+export function snapshotForSync(snapshot: SessionExecutionSnapshot): SessionExecutionSnapshot {
+  return {
+    ...snapshot,
+    blocks: snapshot.blocks.map((block) => {
+      const recorded =
+        block.status === "completed" ||
+        block.status === "partial" ||
+        block.status === "completed_without_metric";
+      if (!recorded || block.withoutMetrics || block.status === "completed_without_metric") {
+        const rest = { ...block };
+        delete rest.metrics;
+        return rest;
+      }
+      if (!block.metrics) return block;
+
+      const prescriptions = block.metrics.prescriptions
+        ?.map((item) => {
+          const { actualWeightKg, ...rest } = item;
+          if (
+            rest.actualWeight === undefined &&
+            typeof actualWeightKg === "number" &&
+            Number.isFinite(actualWeightKg)
+          ) {
+            return { ...rest, actualWeight: { amount: actualWeightKg, unit: "kg" } };
+          }
+          return rest;
+        })
+        .filter((item) => item.actualWeight !== undefined || item.loadStatus !== undefined);
+
+      return {
+        ...block,
+        metrics: {
+          ...block.metrics,
+          prescriptions:
+            prescriptions && prescriptions.length > 0 ? prescriptions : undefined,
+        },
+      };
+    }),
+  };
+}
+
 export async function synchronizeExecutionDraft(
   id: string,
   database: CrossfitDatabase = crossfitDatabase,
@@ -161,9 +202,12 @@ export async function synchronizeExecutionDraft(
 ): Promise<ExecutionDraft> {
   const draft = await database.executionDrafts.get(id);
   if (!draft) throw new Error("Execution draft not found.");
+  if (draft.snapshot.blocks.length === 0) {
+    throw new Error("Añade al menos un bloque antes de sincronizar.");
+  }
 
   try {
-    const result = await synchronizeExecution(draft.id, draft.snapshot, signal);
+    const result = await synchronizeExecution(draft.id, snapshotForSync(draft.snapshot), signal);
     const synchronized: ExecutionDraft = {
       ...draft,
       snapshot: { ...draft.snapshot, baseRevision: result.revision },

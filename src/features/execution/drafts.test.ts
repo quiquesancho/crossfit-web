@@ -15,6 +15,7 @@ import {
   listPendingExecutionDrafts,
   removeDraftBlock,
   saveExecutionDraft,
+  snapshotForSync,
   synchronizeExecutionDraft,
   updateDraftBlock,
 } from "./drafts";
@@ -138,6 +139,73 @@ describe("offline execution drafts", () => {
   it("reports an unknown draft before contacting the API", async () => {
     const database = testDatabase();
     await expect(synchronizeExecutionDraft("missing", database)).rejects.toThrow("not found");
+  });
+
+  it("rejects a free draft without blocks before contacting the API", async () => {
+    const database = testDatabase();
+    const draft = createFreeTrainingDraft("Libre", "2026-10-22");
+    await database.executionDrafts.add(draft);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(synchronizeExecutionDraft(draft.id, database)).rejects.toThrow(
+      "al menos un bloque",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("normalizes legacy weights and strips ignored metrics before syncing", () => {
+    const draft = createExecutionDraft(session);
+    const block = draft.snapshot.blocks[0]!;
+    const snapshot = {
+      ...draft.snapshot,
+      blocks: [
+        {
+          ...block,
+          status: "completed" as const,
+          withoutMetrics: true,
+          metrics: {
+            rounds: 4,
+            prescriptions: [
+              {
+                plannedPrescriptionId: "019b4e0a-0000-4000-8000-000000000043",
+                actualWeightKg: 80,
+              },
+            ],
+          },
+        },
+        {
+          ...block,
+          id: "019b4e0a-0000-7000-8000-000000000103",
+          position: 2,
+          status: "completed" as const,
+          metrics: {
+            rounds: 5,
+            prescriptions: [
+              {
+                plannedPrescriptionId: "019b4e0a-0000-4000-8000-000000000043",
+                actualWeightKg: 80,
+                loadStatus: "scaled" as const,
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    const normalized = snapshotForSync(snapshot);
+
+    expect(normalized.blocks[0]).not.toHaveProperty("metrics");
+    expect(normalized.blocks[1]?.metrics).toEqual({
+      rounds: 5,
+      prescriptions: [
+        {
+          plannedPrescriptionId: "019b4e0a-0000-4000-8000-000000000043",
+          actualWeight: { amount: 80, unit: "kg" },
+          loadStatus: "scaled",
+        },
+      ],
+    });
   });
 });
 

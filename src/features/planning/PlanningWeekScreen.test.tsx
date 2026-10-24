@@ -1,7 +1,12 @@
 import { fireEvent, render, screen, waitFor, cleanup, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { findDraftForSession, getOrCreateDraftForSession, saveExecutionDraft } from "../execution/drafts";
+import {
+  findDraftForSession,
+  getOrCreateDraftForSession,
+  saveExecutionDraft,
+  synchronizeExecutionDraft,
+} from "../execution/drafts";
 import type { ExecutionDraft } from "../execution/types";
 import type { PlanningWeek } from "./api";
 import { PlanningWeekScreen } from "./PlanningWeekScreen";
@@ -10,6 +15,7 @@ vi.mock("../execution/drafts", () => ({
   findDraftForSession: vi.fn().mockResolvedValue(undefined),
   getOrCreateDraftForSession: vi.fn(),
   saveExecutionDraft: vi.fn(),
+  synchronizeExecutionDraft: vi.fn(),
 }));
 
 const week: PlanningWeek = {
@@ -376,7 +382,7 @@ describe("PlanningWeekScreen", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     expect(getOrCreateDraftForSession).toHaveBeenCalledWith(week.sessions[0]);
   });
 
@@ -388,8 +394,31 @@ describe("PlanningWeekScreen", () => {
 
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     expect(findDraftForSession).toHaveBeenCalledWith("session-id");
+  });
+
+  it("synchronizes the planned draft and shows the server state", async () => {
+    const draft = createDraft();
+    const synchronized: ExecutionDraft = {
+      ...draft,
+      syncStatus: "synchronized",
+      snapshot: { ...draft.snapshot, baseRevision: 1 },
+      updatedAt: "2026-10-20T13:05:00.000Z",
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(findDraftForSession).mockResolvedValueOnce(draft);
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
+    vi.mocked(synchronizeExecutionDraft).mockResolvedValueOnce(synchronized);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Sincronizar" }));
+
+    await waitFor(() => expect(screen.getByText("Sincronizado")).toBeDefined());
+    expect(synchronizeExecutionDraft).toHaveBeenCalledWith(draft.id);
+    expect(screen.getByText("Registro sincronizado con el servidor.")).toBeDefined();
   });
 
   it("opens the focused session passed by the records screen", async () => {
@@ -410,7 +439,7 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
 
     fireEvent.change(screen.getByLabelText("Mis notas para este bloque"), {
@@ -437,7 +466,7 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
 
     expect(screen.queryByRole("button", { name: "Sin registrar" })).toBeNull();
@@ -475,7 +504,7 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
     fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
 
@@ -528,7 +557,7 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
     fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
 
@@ -635,7 +664,7 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
     fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
 
@@ -655,7 +684,7 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "WOD: AMRAP 12 minutos" }));
     fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
 
@@ -691,7 +720,7 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
     fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
     expect(
@@ -716,7 +745,7 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
     expect(screen.queryByRole("checkbox", { name: "Sin métricas" })).toBeNull();
 
@@ -757,7 +786,7 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Parcial" }));
@@ -783,7 +812,7 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Omitido" }));
@@ -811,7 +840,7 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
     fireEvent.click(screen.getByText("Power clean y AMRAP"));
     fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Borrador preparado" })).toBeDefined());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
 
     const checkbox = screen.getByRole("checkbox", { name: "Sin métricas" });

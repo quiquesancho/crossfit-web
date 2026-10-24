@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 
-import { findDraftForSession, getOrCreateDraftForSession, saveExecutionDraft } from "../execution/drafts";
+import {
+  findDraftForSession,
+  getOrCreateDraftForSession,
+  saveExecutionDraft,
+  synchronizeExecutionDraft,
+} from "../execution/drafts";
 import {
   BLOCK_STATUS_LABELS,
   BLOCK_STATUS_OPTIONS,
+  SYNC_STATUS_LABELS,
   blockStatusLabel,
   effectiveBlockStatus,
   hasNoMetrics,
@@ -800,6 +806,8 @@ function SessionCard({
 }) {
   const [draftState, setDraftState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [draft, setDraft] = useState<ExecutionDraft | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(initiallyOpen);
   const hydrationRequested = useRef(false);
@@ -849,6 +857,32 @@ function SessionCard({
     }
   }
 
+  async function synchronizeDraft() {
+    if (!draft) return;
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const persisted = await saveExecutionDraft(draft);
+      setDraft(persisted);
+      const synchronized = await synchronizeExecutionDraft(persisted.id);
+      setDraft(synchronized);
+      setDraftState("saved");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudo sincronizar la sesión.";
+      setSyncError(message);
+      setDraftState("error");
+      setDraft({
+        ...draft,
+        syncStatus: "error",
+        lastError: message,
+        updatedAt: new Date().toISOString(),
+      });
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   return (
     <details
       className="session-card"
@@ -875,16 +909,36 @@ function SessionCard({
         <div className="execution-action">
           <div>
             <strong>Registro del entrenamiento</strong>
-            <p>Prepara un borrador local que podrás completar incluso sin conexión.</p>
+            <p>
+              {draft
+                ? draft.syncStatus === "synchronized"
+                  ? "Registro sincronizado con el servidor."
+                  : "Borrador guardado en este dispositivo. Sincronízalo cuando tengas conexión."
+                : "Prepara un borrador local que podrás completar incluso sin conexión."}
+            </p>
+            {draft ? (
+              <span className={`sync-badge sync-${draft.syncStatus}`}>
+                {SYNC_STATUS_LABELS[draft.syncStatus]}
+              </span>
+            ) : null}
           </div>
-          <button disabled={draftState === "saving" || draft !== null} onClick={startExecution}>
-            {draftState === "saving"
-              ? "Guardando…"
-              : draft
-                ? "Borrador preparado"
-                : "Registrar sesión"}
-          </button>
-          {draftState === "error" ? <p role="alert">No se pudo guardar el borrador local.</p> : null}
+          {draft ? (
+            <button
+              type="button"
+              disabled={syncing || draft.snapshot.blocks.length === 0}
+              onClick={() => void synchronizeDraft()}
+            >
+              {syncing ? "Sincronizando…" : "Sincronizar"}
+            </button>
+          ) : (
+            <button disabled={draftState === "saving"} onClick={startExecution}>
+              {draftState === "saving" ? "Guardando…" : "Registrar sesión"}
+            </button>
+          )}
+          {syncError ? <p role="alert">{syncError}</p> : null}
+          {draftState === "error" && !syncError ? (
+            <p role="alert">No se pudo guardar el borrador local.</p>
+          ) : null}
         </div>
 
         <div className="block-list">

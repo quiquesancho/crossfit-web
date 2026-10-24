@@ -7,6 +7,7 @@ import {
   deleteExecutionDraft,
   listExecutionDrafts,
   saveExecutionDraft,
+  synchronizeExecutionDraft,
 } from "./drafts";
 import { ExecutionDraftEditor } from "./ExecutionDraftEditor";
 import { SYNC_STATUS_LABELS } from "./status";
@@ -41,6 +42,7 @@ export function ExecutionRecordsScreen({
   const [date, setDate] = useState(todayIsoDate());
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -108,6 +110,21 @@ export function ExecutionRecordsScreen({
       setConfirmingId(null);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "No se pudo eliminar el borrador.");
+    }
+  }
+
+  async function synchronizeDraft(id: string) {
+    setActionError(null);
+    setSyncingId(id);
+    try {
+      replaceDraft(await synchronizeExecutionDraft(id));
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "No se pudo sincronizar el registro.",
+      );
+      await refreshDrafts();
+    } finally {
+      setSyncingId(null);
     }
   }
 
@@ -230,6 +247,22 @@ export function ExecutionRecordsScreen({
                 >
                   {draft.plannedSessionId ? "Abrir en la planificación" : "Editar"}
                 </button>
+                {draft.syncStatus !== "synchronized" ? (
+                  <button
+                    type="button"
+                    className="link-button"
+                    aria-label={`Sincronizar ${draft.title || "entrenamiento"}`}
+                    disabled={syncingId === draft.id || draft.snapshot.blocks.length === 0}
+                    title={
+                      draft.snapshot.blocks.length === 0
+                        ? "Añade al menos un bloque antes de sincronizar."
+                        : undefined
+                    }
+                    onClick={() => void synchronizeDraft(draft.id)}
+                  >
+                    {syncingId === draft.id ? "Sincronizando…" : "Sincronizar"}
+                  </button>
+                ) : null}
                 {confirmingId === draft.id ? (
                   <span className="record-delete-confirm">
                     <span>¿Eliminar?</span>
