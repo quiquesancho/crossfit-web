@@ -16,7 +16,8 @@ import {
   effectiveBlockStatus,
   hasNoMetrics,
 } from "./status";
-import type { BlockExecutionStatus, ExecutionDraft } from "./types";
+import { FeelingFields } from "./FeelingFields";
+import type { BlockExecutionStatus, ExecutionDraft, Feeling } from "./types";
 
 type SaveState = "saved" | "saving" | "error";
 
@@ -62,6 +63,15 @@ export function ExecutionDraftEditor({
       executionDate,
       snapshot: { ...current.snapshot, executionDate },
     }));
+  }
+
+  function changeFeeling(feeling: Feeling | undefined) {
+    commit((current) => {
+      const snapshot = { ...current.snapshot };
+      if (feeling) snapshot.feeling = feeling;
+      else delete snapshot.feeling;
+      return { ...current, snapshot };
+    });
   }
 
   function addBlock() {
@@ -198,6 +208,8 @@ export function ExecutionDraftEditor({
           />
         </label>
       </div>
+
+      <FeelingFields feeling={current.snapshot.feeling} onChange={changeFeeling} />
 
       <div className="draft-editor-blocks">
         <div className="draft-editor-blocks-heading">
