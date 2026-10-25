@@ -6,6 +6,7 @@ import {
   saveExecutionDraft,
   synchronizeExecutionDraft,
 } from "../execution/drafts";
+import { BlockRpeField, FeelingFields } from "../execution/FeelingFields";
 import {
   BLOCK_STATUS_LABELS,
   BLOCK_STATUS_OPTIONS,
@@ -14,11 +15,14 @@ import {
   effectiveBlockStatus,
   hasNoMetrics,
 } from "../execution/status";
+import { SubstitutionEditor } from "../execution/SubstitutionEditor";
 import type {
   BlockExecutionMetrics,
   ExecutionDraft,
+  Feeling,
   LoadStatus,
   PrescriptionExecutionMetric,
+  Substitution,
   WeightValue,
 } from "../execution/types";
 import { fetchPlanningWeek, type PlannedSession, type PlanningWeek } from "./api";
@@ -457,6 +461,8 @@ function BlockAccordion({
   const showHeaderDuration = Boolean(block.durationSeconds) && formatMeta.length === 0;
   const isStrengthBlock = block.blockType.code === "strength";
   const prescriptionMetrics = executionBlock?.metrics?.prescriptions ?? [];
+  const substitutions = executionBlock?.substitutions ?? [];
+  const [substitutingId, setSubstitutingId] = useState<string | null>(null);
   const showMetrics =
     Boolean(executionBlock) &&
     (effectiveStatus === "completed" || effectiveStatus === "partial") &&
@@ -540,6 +546,23 @@ function BlockAccordion({
     });
   }
 
+  function changeSubstitution(
+    plannedPrescriptionId: string,
+    substitution: Substitution | undefined,
+  ) {
+    if (!executionBlock) return;
+    const next = (executionBlock.substitutions ?? []).filter(
+      (item) => item.plannedPrescriptionId !== plannedPrescriptionId,
+    );
+    if (substitution) next.push(substitution);
+    changeExecutionBlock({ substitutions: next.length > 0 ? next : undefined });
+  }
+
+  function changeBlockFeeling(feeling: Feeling | undefined) {
+    if (!executionBlock) return;
+    changeExecutionBlock({ feeling });
+  }
+
   return (
     <section className={`training-block${open ? " training-block-open" : ""}`}>
       <button
@@ -601,6 +624,9 @@ function BlockAccordion({
                 }
                 const name = prescriptionDisplayName(item);
                 const metric = prescriptionMetrics.find(
+                  (entry) => entry.plannedPrescriptionId === item.id,
+                );
+                const substitution = substitutions.find(
                   (entry) => entry.plannedPrescriptionId === item.id,
                 );
                 const actualWeight = metricActualWeight(metric);
@@ -679,6 +705,32 @@ function BlockAccordion({
                       </dl>
                     ) : null}
                     {item.notes ? <p className="prescription-note">{item.notes}</p> : null}
+                    {draft ? (
+                      <div className="prescription-substitution">
+                        {substitutingId === item.id ? (
+                          <SubstitutionEditor
+                            prescriptionId={item.id}
+                            prescriptionName={name}
+                            substitution={substitution}
+                            onSave={(value) => changeSubstitution(item.id, value)}
+                            onClose={() => setSubstitutingId(null)}
+                          />
+                        ) : (
+                          <div className="prescription-substitution-summary">
+                            <span>
+                              {substitution ? "Sustitución registrada" : "¿No has podido hacerlo?"}
+                            </span>
+                            <button
+                              type="button"
+                              className="link-button"
+                              onClick={() => setSubstitutingId(item.id)}
+                            >
+                              {substitution ? "Editar sustitución" : "Sustituir movimiento"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}
@@ -773,6 +825,12 @@ function BlockAccordion({
                     </p>
                     {amrapSummary ? <p className="amrap-summary">{amrapSummary}</p> : null}
                   </div>
+                ) : null}
+                {effectiveStatus === "completed" || effectiveStatus === "partial" ? (
+                  <BlockRpeField
+                    feeling={executionBlock.feeling}
+                    onChange={changeBlockFeeling}
+                  />
                 ) : null}
                 <div className="block-notes">
                   <label htmlFor={`block-notes-${block.id}`}>Mis notas para este bloque</label>
@@ -892,6 +950,14 @@ function SessionCard({
     }
   }
 
+  function changeFeeling(feeling: Feeling | undefined) {
+    if (!draft) return;
+    const snapshot = { ...draft.snapshot };
+    if (feeling) snapshot.feeling = feeling;
+    else delete snapshot.feeling;
+    void updateDraft({ ...draft, snapshot });
+  }
+
   return (
     <details
       className="session-card"
@@ -949,6 +1015,10 @@ function SessionCard({
             <p role="alert">No se pudo guardar el borrador local.</p>
           ) : null}
         </div>
+
+        {draft ? (
+          <FeelingFields feeling={draft.snapshot.feeling} onChange={changeFeeling} />
+        ) : null}
 
         <div className="block-list">
           {session.blocks.map((block) => (

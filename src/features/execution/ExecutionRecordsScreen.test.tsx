@@ -125,6 +125,31 @@ describe("ExecutionRecordsScreen", () => {
     expect(screen.getByText("1 bloque")).toBeDefined();
   });
 
+  it("stores session feelings in a free training", async () => {
+    render(<ExecutionRecordsScreen onOpenPlannedDraft={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Todavía no hay registros")).toBeDefined());
+
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo entrenamiento libre" }));
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Sesión con sensaciones" } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear y editar" }));
+    expect(await screen.findByRole("heading", { name: "Sesión con sensaciones" })).toBeDefined();
+
+    fireEvent.click(screen.getByText("Sensaciones y RPE"));
+    const rpe = await screen.findByLabelText("RPE de la sesión");
+    fireEvent.change(rpe, { target: { value: "6" } });
+    fireEvent.blur(rpe);
+    fireEvent.change(screen.getByLabelText("Nota de la sesión"), {
+      target: { value: "Sesión suave." },
+    });
+
+    await waitFor(async () => {
+      const [stored] = await crossfitDatabase.executionDrafts.toArray();
+      expect(stored?.snapshot.feeling).toEqual(
+        expect.objectContaining({ rpe: 6, note: "Sesión suave." }),
+      );
+    });
+  });
+
   it("deletes a draft after confirmation", async () => {
     const free = createFreeTrainingDraft("Para borrar", "2026-10-22");
     await crossfitDatabase.executionDrafts.add(free);

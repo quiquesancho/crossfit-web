@@ -207,6 +207,35 @@ describe("offline execution drafts", () => {
       ],
     });
   });
+
+  it("preserves feelings and substitutions when preparing the sync snapshot", () => {
+    const draft = createExecutionDraft(session);
+    const feeling = { id: "019b4e0a-0000-7000-8000-000000000061", rpe: 7 };
+    const substitution = {
+      id: "019b4e0a-0000-7000-8000-000000000063",
+      plannedPrescriptionId: "019b4e0a-0000-4000-8000-000000000043",
+      actualMovementId: "019b4e0a-0000-4000-8000-000000000010",
+      reasonId: "019b4e0a-0000-4000-8000-000000000053",
+    };
+    const snapshot = {
+      ...draft.snapshot,
+      feeling,
+      blocks: [
+        {
+          ...draft.snapshot.blocks[0]!,
+          status: "completed" as const,
+          feeling,
+          substitutions: [substitution],
+        },
+      ],
+    };
+
+    const normalized = snapshotForSync(snapshot);
+
+    expect(normalized.feeling).toEqual(feeling);
+    expect(normalized.blocks[0]?.feeling).toEqual(feeling);
+    expect(normalized.blocks[0]?.substitutions).toEqual([substitution]);
+  });
 });
 
 describe("execution draft library", () => {
