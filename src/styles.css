@@ -73,6 +73,8 @@ button { font: inherit; }
 .block-summary-content strong { overflow: hidden; font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
 .block-type { display: inline-block; color: #5c695e; font-size: .68rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .block-type-strength { color: #9c4c21; }
+.block-type-weightlifting { color: #8a5a17; }
+.block-type-gymnastics { color: #2f5f8a; }
 .block-type-wod { color: #775493; }
 .block-type-warmup { color: #31705d; }
 .block-metrics span { color: #68746a; font-size: .78rem; font-weight: 700; }
@@ -196,17 +198,18 @@ button { font: inherit; }
 .set-attempt-status-partial { --attempt-color: #89601f; --attempt-background: #f5ead5; }
 .set-attempt-status-failed { --attempt-color: #a13c36; --attempt-background: #f6e1df; }
 .set-attempt-remove { margin-left: auto; color: #8a4a45; }
-.set-attempt-readonly { display: flex; align-items: baseline; gap: .35rem .6rem; flex-wrap: wrap; }
+.set-attempt-readonly { display: grid; gap: .3rem; }
+.set-attempt-readonly-heading { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .set-attempt-readonly-title { color: #34463a; font-size: .78rem; font-weight: 800; }
 .set-attempt-readonly-value { color: #263329; font-size: .85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.set-attempt-readonly-note { flex-basis: 100%; color: #69756b; font-size: .76rem; font-style: italic; }
+.set-attempt-readonly-note { color: #69756b; font-size: .76rem; font-style: italic; }
 .set-attempt-badge { padding: .12rem .45rem; border-radius: 999px; font-size: .64rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
 .set-attempt-badge-completed { color: #2f6840; background: #e0eee2; }
 .set-attempt-badge-partial { color: #89601f; background: #f5ead5; }
 .set-attempt-badge-failed { color: #a13c36; background: #f6e1df; }
 .set-attempt-badge-skipped { color: #526054; background: #edf0eb; }
 .set-attempt-fields { display: flex; align-items: flex-end; gap: .6rem; flex-wrap: wrap; margin-top: .5rem; }
-.set-attempt-fields label { display: grid; gap: .25rem; color: #77827a; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
+.set-attempt-fields label { display: grid; align-content: start; gap: .25rem; color: #77827a; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
 .set-attempt-fields label > input,
 .set-attempt-weight input { min-height: 2rem; padding: .2rem .4rem; border: 1px solid #cbd5c9; border-radius: .4rem; color: #263329; background: #fff; font: inherit; font-size: .88rem; }
 .set-attempt-fields label > input:focus,
@@ -222,6 +225,7 @@ button { font: inherit; }
   .set-attempt-fields label > input[inputmode],
   .set-attempt-weight input[inputmode] { width: 100%; }
   .set-attempt-weight { width: 100%; }
+  .set-attempt-note { flex: 0 0 auto; }
 }
 @media (max-width: 560px) {
   .feeling-label { margin-inline: .75rem; }

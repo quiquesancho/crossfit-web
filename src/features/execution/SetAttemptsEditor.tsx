@@ -134,9 +134,11 @@ export function SetAttemptsEditor({
         <ol className="set-attempt-list">
           {attempts.map((attempt, index) => (
             <li className="set-attempt set-attempt-readonly" key={attempt.id}>
-              <span className="set-attempt-readonly-title">Serie {index + 1}</span>
-              <span className={`set-attempt-badge set-attempt-badge-${attempt.status}`}>
-                {ATTEMPT_STATUS_LABELS[attempt.status]}
+              <span className="set-attempt-readonly-heading">
+                <span className="set-attempt-readonly-title">Serie {index + 1}</span>
+                <span className={`set-attempt-badge set-attempt-badge-${attempt.status}`}>
+                  {ATTEMPT_STATUS_LABELS[attempt.status]}
+                </span>
               </span>
               <span className="set-attempt-readonly-value">{attemptValueText(attempt)}</span>
               {attempt.note ? (
