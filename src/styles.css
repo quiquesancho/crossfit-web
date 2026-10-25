@@ -73,8 +73,6 @@ button { font: inherit; }
 .block-summary-content strong { overflow: hidden; font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
 .block-type { display: inline-block; color: #5c695e; font-size: .68rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .block-type-strength { color: #9c4c21; }
-.block-type-weightlifting { color: #8a5a17; }
-.block-type-gymnastics { color: #2f5f8a; }
 .block-type-wod { color: #775493; }
 .block-type-warmup { color: #31705d; }
 .block-metrics span { color: #68746a; font-size: .78rem; font-weight: 700; }

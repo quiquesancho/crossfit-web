@@ -73,12 +73,7 @@ const WORKOUT_FORMAT_LABELS: Record<string, string> = {
   rounds_for_time: "Rounds For Time",
 };
 
-const SET_ATTEMPT_BLOCK_TYPES = new Set([
-  "strength",
-  "technique",
-  "weightlifting",
-  "gymnastics",
-]);
+const SET_ATTEMPT_BLOCK_TYPES = new Set(["strength", "technique"]);
 
 type LoadDisplay =
   | { kind: "guidance"; text: string }
