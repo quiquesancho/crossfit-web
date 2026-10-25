@@ -29,7 +29,7 @@ function loadMovements(): Promise<Movement[]> {
  */
 export function useMovementNames(ids: string[]): Record<string, string> {
   const [names, setNames] = useState<Record<string, string>>({});
-  const key = [...new Set(ids)].sort().join(",");
+  const key = [...new Set(ids)].sort((left, right) => left.localeCompare(right)).join(",");
 
   useEffect(() => {
     if (!key) return;
