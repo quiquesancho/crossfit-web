@@ -101,6 +101,17 @@ export function summarizeAttempts(attempts: SetAttempt[] | undefined): AttemptSu
   };
 }
 
+export function attemptValueText(attempt: SetAttempt): string {
+  const parts: string[] = [];
+  if (attempt.weight) {
+    parts.push(`${formatAmount(attempt.weight.amount)} ${attempt.weight.unit}`);
+  }
+  if (attempt.repetitions !== undefined) {
+    parts.push(`${attempt.repetitions} ${attempt.repetitions === 1 ? "rep" : "reps"}`);
+  }
+  return parts.length > 0 ? parts.join(" × ") : "Sin datos";
+}
+
 export function attemptSummaryText(attempts: SetAttempt[] | undefined): string | null {
   const summary = summarizeAttempts(attempts);
   if (summary.series === 0) return null;

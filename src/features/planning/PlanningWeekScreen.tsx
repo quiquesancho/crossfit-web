@@ -684,6 +684,7 @@ function BlockAccordion({
                           numberDetail(item.details, "repetitions") ?? undefined
                         }
                         allAttempts={executionBlock?.attempts}
+                        syncStatus={draft?.syncStatus}
                         onChange={(attempts) => changeExecutionBlock({ attempts })}
                       />
                     ) : null}

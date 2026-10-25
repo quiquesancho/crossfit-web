@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   attemptSummaryText,
+  attemptValueText,
   attemptsForPrescription,
   createAttempt,
   duplicateAttempt,
@@ -89,6 +90,15 @@ describe("set attempt helpers", () => {
     expect(updated[1]).toBe(attempts[1]);
 
     expect(removeAttempt(updated, "one")).toEqual([attempts[1]]);
+  });
+
+  it("describes the value of one attempt as text", () => {
+    expect(attemptValueText(attempt({ weight: { amount: 62.5, unit: "kg" }, repetitions: 3 }))).toBe(
+      "62,5 kg × 3 reps",
+    );
+    expect(attemptValueText(attempt({ repetitions: 1 }))).toBe("1 rep");
+    expect(attemptValueText(attempt({ weight: { amount: 60, unit: "kg" } }))).toBe("60 kg");
+    expect(attemptValueText(attempt({}))).toBe("Sin datos");
   });
 
   it("summarizes the counted series, repetitions and volume", () => {

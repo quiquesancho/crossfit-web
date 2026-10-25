@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
+
 import { MetricNumberInput } from "./MetricNumberInput";
 import {
   attemptSummaryText,
+  attemptValueText,
   attemptsForPrescription,
   createAttempt,
   duplicateAttempt,
@@ -15,6 +18,13 @@ const ATTEMPT_STATUS_OPTIONS: Array<{ value: SetAttemptStatus; label: string }> 
   { value: "failed", label: "Fallida" },
 ];
 
+const ATTEMPT_STATUS_LABELS: Record<SetAttemptStatus, string> = {
+  completed: "Completada",
+  partial: "Parcial",
+  failed: "Fallida",
+  skipped: "Omitida",
+};
+
 export function SetAttemptsEditor({
   plannedPrescriptionId,
   prescriptionName,
@@ -23,6 +33,7 @@ export function SetAttemptsEditor({
   prescribedWeight,
   defaultRepetitions,
   allAttempts,
+  syncStatus,
   onChange,
 }: {
   plannedPrescriptionId: string;
@@ -32,10 +43,18 @@ export function SetAttemptsEditor({
   prescribedWeight?: WeightValue;
   defaultRepetitions?: number;
   allAttempts: SetAttempt[] | undefined;
+  syncStatus?: "pending" | "synchronized" | "error";
   onChange: (attempts: SetAttempt[] | undefined) => void;
 }) {
   const attempts = attemptsForPrescription(allAttempts, plannedPrescriptionId);
   const summary = attemptSummaryText(attempts);
+  const [editing, setEditing] = useState(false);
+  const synchronized = syncStatus === "synchronized";
+  const readOnly = synchronized && attempts.length > 0 && !editing;
+
+  useEffect(() => {
+    if (synchronized) setEditing(false);
+  }, [synchronized]);
 
   function apply(next: SetAttempt[]) {
     const others = (allAttempts ?? []).filter(
@@ -71,12 +90,35 @@ export function SetAttemptsEditor({
         </span>
         {attempts.length > 0 ? (
           <span className="set-attempts-actions">
-            <button type="button" className="link-button" onClick={cloneLastAttempt}>
-              Duplicar última
-            </button>
-            <button type="button" className="link-button" onClick={addAttempt}>
-              Añadir serie
-            </button>
+            {readOnly ? (
+              <button
+                type="button"
+                className="link-button"
+                aria-label={`Editar series de ${prescriptionName}`}
+                onClick={() => setEditing(true)}
+              >
+                Editar
+              </button>
+            ) : (
+              <>
+                {synchronized ? (
+                  <button
+                    type="button"
+                    className="link-button"
+                    aria-label={`Cerrar edición de ${prescriptionName}`}
+                    onClick={() => setEditing(false)}
+                  >
+                    Hecho
+                  </button>
+                ) : null}
+                <button type="button" className="link-button" onClick={cloneLastAttempt}>
+                  Duplicar última
+                </button>
+                <button type="button" className="link-button" onClick={addAttempt}>
+                  Añadir serie
+                </button>
+              </>
+            )}
           </span>
         ) : null}
       </div>
@@ -88,6 +130,21 @@ export function SetAttemptsEditor({
             Añadir primera serie
           </button>
         </div>
+      ) : readOnly ? (
+        <ol className="set-attempt-list">
+          {attempts.map((attempt, index) => (
+            <li className="set-attempt set-attempt-readonly" key={attempt.id}>
+              <span className="set-attempt-readonly-title">Serie {index + 1}</span>
+              <span className={`set-attempt-badge set-attempt-badge-${attempt.status}`}>
+                {ATTEMPT_STATUS_LABELS[attempt.status]}
+              </span>
+              <span className="set-attempt-readonly-value">{attemptValueText(attempt)}</span>
+              {attempt.note ? (
+                <span className="set-attempt-readonly-note">{attempt.note}</span>
+              ) : null}
+            </li>
+          ))}
+        </ol>
       ) : (
         <ol className="set-attempt-list">
           {attempts.map((attempt, index) => (

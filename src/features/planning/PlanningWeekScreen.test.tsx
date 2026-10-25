@@ -1174,6 +1174,71 @@ describe("PlanningWeekScreen", () => {
     await waitFor(() => expect(prescription.querySelectorAll(".set-attempt")).toHaveLength(1));
   });
 
+  it("shows synchronized sets as text and only edits them on demand", async () => {
+    const base = createDraft();
+    const draft: ExecutionDraft = {
+      ...base,
+      syncStatus: "synchronized",
+      snapshot: {
+        ...base.snapshot,
+        baseRevision: 1,
+        blocks: base.snapshot.blocks.map((block) =>
+          block.plannedBlockId === "block-id"
+            ? {
+                ...block,
+                status: "completed" as const,
+                attempts: [
+                  {
+                    id: "attempt-1",
+                    plannedPrescriptionId: "back-squat-prescription-id",
+                    position: 1,
+                    status: "completed" as const,
+                    repetitions: 10,
+                    weight: { amount: 60, unit: "kg" },
+                    note: "Buen ritmo",
+                  },
+                ],
+              }
+            : block,
+        ),
+      },
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(week), { status: 200 })));
+    vi.mocked(findDraftForSession).mockResolvedValueOnce(draft);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+
+    const prescription = screen
+      .getAllByText("Back squat")
+      .map((node) => node.closest(".prescription"))
+      .find((node) => node?.querySelector(".set-attempts")) as HTMLElement;
+
+    expect(within(prescription).getByText("60 kg × 10 reps")).toBeDefined();
+    expect(within(prescription).getByText("Buen ritmo")).toBeDefined();
+    expect(
+      within(prescription).queryByRole("textbox", {
+        name: "Peso usado en la serie 1 de Back squat",
+      }),
+    ).toBeNull();
+
+    fireEvent.click(
+      within(prescription).getByRole("button", { name: "Editar series de Back squat" }),
+    );
+    expect(
+      within(prescription).getByRole("textbox", {
+        name: "Peso usado en la serie 1 de Back squat",
+      }),
+    ).toBeDefined();
+
+    fireEvent.click(
+      within(prescription).getByRole("button", { name: "Cerrar edición de Back squat" }),
+    );
+    expect(within(prescription).getByText("60 kg × 10 reps")).toBeDefined();
+  });
+
   it("does not offer sets outside strength and technique blocks", async () => {
     stubApi();
     vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
