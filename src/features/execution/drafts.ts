@@ -165,9 +165,12 @@ export function snapshotForSync(snapshot: SessionExecutionSnapshot): SessionExec
       if (!recorded || block.withoutMetrics || block.status === "completed_without_metric") {
         const rest = { ...block };
         delete rest.metrics;
+        delete rest.attempts;
         return rest;
       }
-      if (!block.metrics) return block;
+      const attempts =
+        block.attempts && block.attempts.length > 0 ? block.attempts : undefined;
+      if (!block.metrics) return { ...block, attempts };
 
       const prescriptions = block.metrics.prescriptions
         ?.map((item) => {
@@ -190,6 +193,7 @@ export function snapshotForSync(snapshot: SessionExecutionSnapshot): SessionExec
           prescriptions:
             prescriptions && prescriptions.length > 0 ? prescriptions : undefined,
         },
+        attempts,
       };
     }),
   };

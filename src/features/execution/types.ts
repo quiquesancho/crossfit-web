@@ -14,6 +14,20 @@ export type WeightValue = {
 
 export type LoadStatus = "rx" | "scaled";
 
+export type SetAttemptStatus = "completed" | "partial" | "failed" | "skipped";
+
+export type SetAttempt = {
+  id: string;
+  plannedPrescriptionId?: string;
+  position: number;
+  movementId?: string;
+  complexVersionId?: string;
+  status: SetAttemptStatus;
+  note?: string;
+  weight?: WeightValue;
+  repetitions?: number;
+};
+
 export type PrescriptionExecutionMetric = {
   plannedPrescriptionId: string;
   actualWeight?: WeightValue;
@@ -65,6 +79,7 @@ export type SessionExecutionSnapshot = {
     metrics?: BlockExecutionMetrics;
     feeling?: Feeling;
     substitutions?: Substitution[];
+    attempts?: SetAttempt[];
   }>;
 };
 

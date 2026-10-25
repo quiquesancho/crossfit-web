@@ -1027,4 +1027,131 @@ describe("PlanningWeekScreen", () => {
     );
     expect(screen.getByText("Sustitución registrada")).toBeDefined();
   });
+
+  it("records strength sets with repetitions and weight in the offline draft", async () => {
+    stubApi();
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+
+    const prescription = screen
+      .getAllByText("Back squat")
+      .map((node) => node.closest(".prescription"))
+      .find((node) => node?.querySelector(".set-attempts")) as HTMLElement;
+    expect(prescription).toBeDefined();
+
+    fireEvent.click(within(prescription).getByRole("button", { name: "Añadir primera serie" }));
+
+    const repetitions = within(prescription).getByRole("textbox", {
+      name: "Repeticiones de la serie 1 de Back squat",
+    });
+    const weight = within(prescription).getByRole("textbox", {
+      name: "Peso usado en la serie 1 de Back squat",
+    });
+    expect((repetitions as HTMLInputElement).value).toBe("10");
+    expect((weight as HTMLInputElement).value).toBe("60");
+
+    fireEvent.change(repetitions, { target: { value: "8" } });
+    fireEvent.blur(repetitions);
+    fireEvent.change(weight, { target: { value: "65" } });
+    fireEvent.blur(weight);
+    fireEvent.click(within(prescription).getByRole("button", { name: "Parcial" }));
+
+    await waitFor(() =>
+      expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          snapshot: expect.objectContaining({
+            blocks: expect.arrayContaining([
+              expect.objectContaining({
+                plannedBlockId: "block-id",
+                attempts: [
+                  expect.objectContaining({
+                    plannedPrescriptionId: "back-squat-prescription-id",
+                    position: 1,
+                    status: "partial",
+                    repetitions: 8,
+                    weight: { amount: 65, unit: "kg" },
+                  }),
+                ],
+              }),
+            ]),
+          }),
+        }),
+      ),
+    );
+    expect(within(prescription).getByText("1 serie · 8 repeticiones · Volumen 520 kg")).toBeDefined();
+  });
+
+  it("duplicates the last set and removes it from the offline draft", async () => {
+    stubApi();
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+
+    const prescription = screen
+      .getAllByText("Back squat")
+      .map((node) => node.closest(".prescription"))
+      .find((node) => node?.querySelector(".set-attempts")) as HTMLElement;
+    fireEvent.click(within(prescription).getByRole("button", { name: "Añadir primera serie" }));
+    fireEvent.click(within(prescription).getByRole("button", { name: "Duplicar última" }));
+
+    const attempts = prescription.querySelectorAll(".set-attempt");
+    expect(attempts).toHaveLength(2);
+    expect(
+      within(prescription).getByRole("textbox", { name: "Repeticiones de la serie 2 de Back squat" }),
+    ).toBeDefined();
+
+    await waitFor(() =>
+      expect(saveExecutionDraft).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          snapshot: expect.objectContaining({
+            blocks: expect.arrayContaining([
+              expect.objectContaining({
+                attempts: [
+                  expect.objectContaining({ position: 1 }),
+                  expect.objectContaining({ position: 2, repetitions: 10 }),
+                ],
+              }),
+            ]),
+          }),
+        }),
+      ),
+    );
+
+    fireEvent.click(
+      within(prescription).getByRole("button", { name: "Eliminar serie 2 de Back squat" }),
+    );
+    await waitFor(() => expect(prescription.querySelectorAll(".set-attempt")).toHaveLength(1));
+  });
+
+  it("does not offer sets outside strength and technique blocks", async () => {
+    stubApi();
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "WOD: AMRAP 12 minutos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+
+    const wodBlock = screen
+      .getByRole("button", { name: "WOD: AMRAP 12 minutos" })
+      .closest(".training-block") as HTMLElement;
+    expect(within(wodBlock).queryByText("Sin series registradas.")).toBeNull();
+    expect(within(wodBlock).queryByRole("button", { name: "Añadir primera serie" })).toBeNull();
+  });
 });

@@ -7,6 +7,8 @@ import {
   synchronizeExecutionDraft,
 } from "../execution/drafts";
 import { BlockRpeField, FeelingFields } from "../execution/FeelingFields";
+import { MetricNumberInput } from "../execution/MetricNumberInput";
+import { SetAttemptsEditor } from "../execution/SetAttemptsEditor";
 import {
   BLOCK_STATUS_LABELS,
   BLOCK_STATUS_OPTIONS,
@@ -69,6 +71,13 @@ const WORKOUT_FORMAT_LABELS: Record<string, string> = {
   for_time: "For Time",
   rounds_for_time: "Rounds For Time",
 };
+
+const SET_ATTEMPT_BLOCK_TYPES = new Set([
+  "strength",
+  "technique",
+  "weightlifting",
+  "gymnastics",
+]);
 
 type LoadDisplay =
   | { kind: "guidance"; text: string }
@@ -341,58 +350,6 @@ function amrapResultSummary(metrics: BlockExecutionMetrics | undefined): string 
   return parts.length > 0 ? parts.join(" + ") : null;
 }
 
-function MetricNumberInput({
-  id,
-  ariaLabel,
-  value,
-  placeholder,
-  integer = false,
-  onCommit,
-}: {
-  id: string;
-  ariaLabel: string;
-  value: number | undefined;
-  placeholder?: string;
-  integer?: boolean;
-  onCommit: (value: number | undefined) => void;
-}) {
-  const [text, setText] = useState(value === undefined ? "" : String(value));
-
-  useEffect(() => {
-    setText(value === undefined ? "" : String(value));
-  }, [value]);
-
-  function commit() {
-    const trimmed = text.trim();
-    if (trimmed === "") {
-      onCommit(undefined);
-      return;
-    }
-    const parsed = Number(trimmed.replace(",", "."));
-    if (!Number.isFinite(parsed) || parsed < 0 || (integer && !Number.isInteger(parsed))) {
-      setText(value === undefined ? "" : String(value));
-      return;
-    }
-    onCommit(parsed);
-  }
-
-  return (
-    <input
-      id={id}
-      type="text"
-      inputMode={integer ? "numeric" : "decimal"}
-      aria-label={ariaLabel}
-      value={text}
-      placeholder={placeholder}
-      onChange={(event) => setText(event.target.value)}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") event.currentTarget.blur();
-      }}
-    />
-  );
-}
-
 function LoadPartView({
   amount,
   unit,
@@ -460,6 +417,7 @@ function BlockAccordion({
     : [];
   const showHeaderDuration = Boolean(block.durationSeconds) && formatMeta.length === 0;
   const isStrengthBlock = block.blockType.code === "strength";
+  const supportsAttempts = SET_ATTEMPT_BLOCK_TYPES.has(block.blockType.code);
   const prescriptionMetrics = executionBlock?.metrics?.prescriptions ?? [];
   const substitutions = executionBlock?.substitutions ?? [];
   const [substitutingId, setSubstitutingId] = useState<string | null>(null);
@@ -705,6 +663,19 @@ function BlockAccordion({
                       </dl>
                     ) : null}
                     {item.notes ? <p className="prescription-note">{item.notes}</p> : null}
+                    {showMetrics && supportsAttempts ? (
+                      <SetAttemptsEditor
+                        plannedPrescriptionId={item.id}
+                        prescriptionName={name}
+                        unit={unit}
+                        prescribedWeight={prescribed}
+                        defaultRepetitions={
+                          numberDetail(item.details, "repetitions") ?? undefined
+                        }
+                        allAttempts={executionBlock?.attempts}
+                        onChange={(attempts) => changeExecutionBlock({ attempts })}
+                      />
+                    ) : null}
                     {draft ? (
                       <div className="prescription-substitution">
                         {substitutingId === item.id ? (

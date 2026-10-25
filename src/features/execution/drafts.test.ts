@@ -236,6 +236,49 @@ describe("offline execution drafts", () => {
     expect(normalized.blocks[0]?.feeling).toEqual(feeling);
     expect(normalized.blocks[0]?.substitutions).toEqual([substitution]);
   });
+
+  it("sends attempts only for recorded blocks without the metrics modifier", () => {
+    const draft = createExecutionDraft(session);
+    const attempt = {
+      id: "019b4e0a-0000-7000-8000-000000000071",
+      plannedPrescriptionId: "019b4e0a-0000-4000-8000-000000000043",
+      position: 1,
+      status: "completed" as const,
+      repetitions: 5,
+      weight: { amount: 60, unit: "kg" },
+    };
+    const snapshot = {
+      ...draft.snapshot,
+      blocks: [
+        {
+          ...draft.snapshot.blocks[0]!,
+          status: "completed" as const,
+          attempts: [attempt],
+        },
+        {
+          ...draft.snapshot.blocks[0]!,
+          id: "019b4e0a-0000-7000-8000-000000000103",
+          position: 2,
+          status: "completed" as const,
+          withoutMetrics: true,
+          attempts: [{ ...attempt, id: "019b4e0a-0000-7000-8000-000000000072" }],
+        },
+        {
+          ...draft.snapshot.blocks[0]!,
+          id: "019b4e0a-0000-7000-8000-000000000104",
+          position: 3,
+          status: "completed" as const,
+          attempts: [],
+        },
+      ],
+    };
+
+    const normalized = snapshotForSync(snapshot);
+
+    expect(normalized.blocks[0]?.attempts).toEqual([attempt]);
+    expect(normalized.blocks[1]).not.toHaveProperty("attempts");
+    expect(normalized.blocks[2]?.attempts).toBeUndefined();
+  });
 });
 
 describe("execution draft library", () => {
