@@ -1025,7 +1025,45 @@ describe("PlanningWeekScreen", () => {
         }),
       ),
     );
-    expect(screen.getByText("Sustitución registrada")).toBeDefined();
+    const summary = screen
+      .getAllByText(/Sustituido por/)[0]!
+      .closest(".prescription-substitution-summary");
+    expect(summary?.textContent).toContain("Sustituido por Burpee");
+    expect(await screen.findByText(/→\s*Burpee/)).toBeDefined();
+  });
+
+  it("shows the substituted movement in the set editor", async () => {
+    stubApi();
+    vi.mocked(getOrCreateDraftForSession).mockResolvedValueOnce(createDraft());
+    vi.mocked(saveExecutionDraft).mockImplementation(async (value) => value);
+    render(<PlanningWeekScreen initialWeekStart="2026-10-19" />);
+    await waitFor(() => expect(screen.getByText("Semana de fuerza")).toBeDefined());
+    fireEvent.click(screen.getByText("Power clean y AMRAP"));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar sesión" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sincronizar" })).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Fuerza: Power clean" }));
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+
+    const prescription = screen
+      .getAllByText("Power clean")
+      .map((node) => node.closest(".prescription"))
+      .find((node) => node?.querySelector(".set-attempts")) as HTMLElement;
+    expect(prescription).toBeDefined();
+
+    fireEvent.click(within(prescription).getByRole("button", { name: "Sustituir movimiento" }));
+    const movement = await screen.findByLabelText("Movimiento realizado en Power clean");
+    fireEvent.change(movement, { target: { value: "burpee-id" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar sustitución" }));
+
+    await waitFor(() => expect(within(prescription).getByText("→ Burpee")).toBeDefined());
+    expect(within(prescription).getByText("Series de Burpee")).toBeDefined();
+
+    fireEvent.click(within(prescription).getByRole("button", { name: "Añadir primera serie" }));
+    expect(
+      within(prescription).getByRole("textbox", {
+        name: "Peso usado en la serie 1 de Power clean",
+      }),
+    ).toBeDefined();
   });
 
   it("records strength sets with repetitions and weight in the offline draft", async () => {

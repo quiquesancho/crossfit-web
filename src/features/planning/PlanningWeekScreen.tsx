@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { useMovementNames } from "../catalog/movements";
 import {
   findDraftForSession,
   getOrCreateDraftForSession,
@@ -420,6 +421,7 @@ function BlockAccordion({
   const supportsAttempts = SET_ATTEMPT_BLOCK_TYPES.has(block.blockType.code);
   const prescriptionMetrics = executionBlock?.metrics?.prescriptions ?? [];
   const substitutions = executionBlock?.substitutions ?? [];
+  const movementNames = useMovementNames(substitutions.map((item) => item.actualMovementId));
   const [substitutingId, setSubstitutingId] = useState<string | null>(null);
   const showMetrics =
     Boolean(executionBlock) &&
@@ -587,6 +589,9 @@ function BlockAccordion({
                 const substitution = substitutions.find(
                   (entry) => entry.plannedPrescriptionId === item.id,
                 );
+                const substitutedName = substitution
+                  ? movementNames[substitution.actualMovementId]
+                  : undefined;
                 const actualWeight = metricActualWeight(metric);
                 const prescribed = prescribedWeight(item.details);
                 const unit = weightUnit(item.details);
@@ -606,6 +611,11 @@ function BlockAccordion({
                       <strong>
                         {item.complex.name} · v{item.complex.versionNumber}
                       </strong>
+                    ) : null}
+                    {substitution ? (
+                      <span className="prescription-substitution-badge">
+                        → {substitutedName ?? "otro movimiento"}
+                      </span>
                     ) : null}
                     {entries.length > 0 ? (
                       <dl>
@@ -667,6 +677,7 @@ function BlockAccordion({
                       <SetAttemptsEditor
                         plannedPrescriptionId={item.id}
                         prescriptionName={name}
+                        actualMovementName={substitutedName}
                         unit={unit}
                         prescribedWeight={prescribed}
                         defaultRepetitions={
@@ -689,7 +700,14 @@ function BlockAccordion({
                         ) : (
                           <div className="prescription-substitution-summary">
                             <span>
-                              {substitution ? "Sustitución registrada" : "¿No has podido hacerlo?"}
+                              {substitution ? (
+                                <>
+                                  Sustituido por{" "}
+                                  <strong>{substitutedName ?? "otro movimiento"}</strong>
+                                </>
+                              ) : (
+                                "¿No has podido hacerlo?"
+                              )}
                             </span>
                             <button
                               type="button"

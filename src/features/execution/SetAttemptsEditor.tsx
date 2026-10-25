@@ -18,6 +18,7 @@ const ATTEMPT_STATUS_OPTIONS: Array<{ value: SetAttemptStatus; label: string }> 
 export function SetAttemptsEditor({
   plannedPrescriptionId,
   prescriptionName,
+  actualMovementName,
   unit,
   prescribedWeight,
   defaultRepetitions,
@@ -26,6 +27,7 @@ export function SetAttemptsEditor({
 }: {
   plannedPrescriptionId: string;
   prescriptionName: string;
+  actualMovementName?: string;
   unit: string;
   prescribedWeight?: WeightValue;
   defaultRepetitions?: number;
@@ -64,7 +66,9 @@ export function SetAttemptsEditor({
   return (
     <div className="set-attempts">
       <div className="set-attempts-header">
-        <span className="set-attempts-title">Series registradas</span>
+        <span className="set-attempts-title">
+          {actualMovementName ? `Series de ${actualMovementName}` : "Series registradas"}
+        </span>
         {attempts.length > 0 ? (
           <span className="set-attempts-actions">
             <button type="button" className="link-button" onClick={cloneLastAttempt}>
