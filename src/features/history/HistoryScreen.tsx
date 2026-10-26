@@ -80,11 +80,12 @@ function ExecutionCard({
       <div className="history-card-main">
         {showDate ? (
           <p className="session-date">
-            {formatShortDate(execution.executionDate)} · {ORIGIN_LABELS[execution.origin]}
+            {formatShortDate(execution.executionDate)}
+            {execution.origin === "planned" ? ` · ${ORIGIN_LABELS.planned}` : null}
           </p>
-        ) : (
-          <p className="history-card-origin">{ORIGIN_LABELS[execution.origin]}</p>
-        )}
+        ) : execution.origin === "planned" ? (
+          <p className="history-card-origin">{ORIGIN_LABELS.planned}</p>
+        ) : null}
         <h3>{execution.title}</h3>
         <p className="record-meta">
           <span>{blockCountLabel(execution.blockCount)}</span>
@@ -105,7 +106,7 @@ function ExecutionCard({
             Abrir en la planificación
           </button>
         ) : (
-          <span className="history-card-note">Entrenamiento libre</span>
+          <span className="history-card-note">Sin sesión planificada</span>
         )}
       </div>
     </article>

@@ -83,7 +83,7 @@ describe("HistoryScreen", () => {
     expect(within(dayPanel).getAllByText("Finalizada")).toHaveLength(1);
 
     await waitFor(() => expect(screen.getByText("Últimos registros")).toBeTruthy());
-    expect(screen.getAllByText("Entrenamiento libre")).toHaveLength(2);
+    expect(screen.getAllByText("Entrenamiento libre")).toHaveLength(1);
   });
 
   it("opens a planned session from the day panel and from the history", async () => {

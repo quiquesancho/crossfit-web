@@ -39,21 +39,29 @@ export function isSameMonth(date: string, monthStart: string): boolean {
   return date.slice(0, 7) === monthStart.slice(0, 7);
 }
 
+function capitalizeFirst(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 export function formatMonthTitle(monthStart: string): string {
-  return new Intl.DateTimeFormat("es-ES", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(dateFromIso(monthStart));
+  return capitalizeFirst(
+    new Intl.DateTimeFormat("es-ES", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(dateFromIso(monthStart)),
+  );
 }
 
 export function formatDayLong(value: string): string {
-  return new Intl.DateTimeFormat("es-ES", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  }).format(dateFromIso(value));
+  return capitalizeFirst(
+    new Intl.DateTimeFormat("es-ES", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      timeZone: "UTC",
+    }).format(dateFromIso(value)),
+  );
 }
 
 export function formatShortDate(value: string): string {

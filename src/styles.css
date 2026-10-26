@@ -334,7 +334,7 @@ button { font: inherit; }
 .history-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(18rem, .8fr); gap: 1rem; align-items: start; margin-bottom: 1.75rem; }
 .calendar-panel, .day-panel { padding: 1.15rem 1.25rem; border: 1px solid #dbe0d8; border-radius: 1rem; background: #fff; box-shadow: 0 8px 24px rgb(38 54 42 / 5%); }
 .calendar-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .9rem; }
-.calendar-heading h3, .day-panel h3 { margin: 0; font-size: 1.2rem; letter-spacing: -.02em; text-transform: capitalize; }
+.calendar-heading h3, .day-panel h3 { margin: 0; font-size: 1.2rem; letter-spacing: -.02em; }
 .calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .3rem; }
 .calendar-weekdays { margin-bottom: .35rem; color: #778278; font-size: .68rem; font-weight: 900; text-align: center; letter-spacing: .06em; }
 .calendar-day { display: grid; align-content: space-between; gap: .2rem; min-height: 3.1rem; padding: .35rem .4rem; border: 1px solid transparent; border-radius: .55rem; color: #29372c; background: #f7f9f5; text-align: left; cursor: pointer; }
@@ -369,6 +369,7 @@ button { font: inherit; }
 .history-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .35rem .9rem; padding: .9rem 1.1rem; border: 1px solid #dbe0d8; border-radius: .9rem; background: #fff; }
 .history-card-main { min-width: 0; }
 .history-card h3 { margin: 0 0 .25rem; font-size: 1.02rem; }
+.history-card .session-date { color: #657267; text-transform: none; }
 .history-card-origin { margin: 0 0 .2rem; color: #657267; font-size: .72rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
 .history-card-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .history-card-note { color: #778278; font-size: .76rem; }
