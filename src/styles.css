@@ -209,9 +209,11 @@ button { font: inherit; }
 .set-attempt-fields { display: flex; align-items: flex-end; gap: .6rem; flex-wrap: wrap; margin-top: .5rem; }
 .set-attempt-fields label { display: grid; align-content: start; gap: .25rem; color: #77827a; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
 .set-attempt-fields label > input,
-.set-attempt-weight input { min-height: 2rem; padding: .2rem .4rem; border: 1px solid #cbd5c9; border-radius: .4rem; color: #263329; background: #fff; font: inherit; font-size: .88rem; }
+.set-attempt-fields .set-attempt-weight input,
+.set-attempt-fields .set-attempt-note input { min-height: 2rem; padding: .2rem .4rem; border: 1px solid #cbd5c9; border-radius: .4rem; color: #263329; background: #fff; font: inherit; font-size: .88rem; }
 .set-attempt-fields label > input:focus,
-.set-attempt-weight input:focus { border-color: #64806a; outline: 3px solid #dce8dc; }
+.set-attempt-fields .set-attempt-weight input:focus,
+.set-attempt-fields .set-attempt-note input:focus { border-color: #64806a; outline: 3px solid #dce8dc; }
 .set-attempt-fields label > input[inputmode],
 .set-attempt-weight input[inputmode] { width: 4.5rem; min-width: 0; text-align: left; }
 .set-attempt-weight { display: inline-flex; align-items: center; gap: .35rem; min-width: 0; }
