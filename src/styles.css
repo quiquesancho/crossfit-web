@@ -379,8 +379,8 @@ button { font: inherit; }
 .history-hint { margin: .35rem 0 0; color: #778278; font-size: .76rem; line-height: 1.45; }
 
 @media (max-width: 680px) {
-  .app-tabs { display: flex; width: 100%; }
-  .app-tabs button { flex: 1; }
+  .app-tabs { display: flex; width: 100%; gap: .2rem; }
+  .app-tabs button { flex: 1; min-width: 0; padding: .5rem .3rem; font-size: .8rem; white-space: nowrap; }
   .free-training-form, .draft-editor-fields { grid-template-columns: 1fr; }
   .record-card { grid-template-columns: minmax(0, 1fr); }
   .sync-badge { justify-self: start; }
