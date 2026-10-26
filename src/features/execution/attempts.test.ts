@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   attemptSummaryText,
   attemptValueText,
+  attemptsForMovement,
   attemptsForPrescription,
   createAttempt,
   duplicateAttempt,
+  movementIdsForAttempts,
   nextAttemptPosition,
   removeAttempt,
   summarizeAttempts,
@@ -40,8 +42,39 @@ describe("set attempt helpers", () => {
     expect(nextAttemptPosition(attempts)).toBe(4);
   });
 
+  it("filters free-training attempts by movement and keeps their order", () => {
+    const attempts = [
+      attempt({ id: "power-second", plannedPrescriptionId: undefined, movementId: "power-clean", position: 2 }),
+      attempt({ id: "deadlift", plannedPrescriptionId: undefined, movementId: "deadlift", position: 1 }),
+      attempt({ id: "power-first", plannedPrescriptionId: undefined, movementId: "power-clean", position: 3 }),
+    ];
+
+    expect(attemptsForMovement(attempts, "power-clean").map(({ id }) => id)).toEqual([
+      "power-second",
+      "power-first",
+    ]);
+    expect(attemptsForMovement(attempts, "deadlift").map(({ id }) => id)).toEqual(["deadlift"]);
+    expect(movementIdsForAttempts(attempts)).toEqual(["deadlift", "power-clean"]);
+    expect(movementIdsForAttempts(undefined)).toEqual([]);
+  });
+
+  it("creates a movement-anchored attempt without a prescription", () => {
+    const created = createAttempt({ movementId: "power-clean" }, [], { repetitions: 3 });
+
+    expect(created).toEqual(
+      expect.objectContaining({
+        movementId: "power-clean",
+        position: 1,
+        status: "completed",
+        repetitions: 3,
+      }),
+    );
+    expect(created.plannedPrescriptionId).toBeUndefined();
+    expect(created.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7/);
+  });
+
   it("creates an attempt with the default load and repetitions", () => {
-    const created = createAttempt(prescriptionId, [attempt({})], {
+    const created = createAttempt({ plannedPrescriptionId: prescriptionId }, [attempt({})], {
       weight: { amount: 60, unit: "kg" },
       repetitions: 4,
     });

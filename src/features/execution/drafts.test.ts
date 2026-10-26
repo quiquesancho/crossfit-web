@@ -279,6 +279,28 @@ describe("offline execution drafts", () => {
     expect(normalized.blocks[1]).not.toHaveProperty("attempts");
     expect(normalized.blocks[2]?.attempts).toBeUndefined();
   });
+
+  it("strips the local movement list before syncing", () => {
+    const withBlock = addDraftBlock(
+      createFreeTrainingDraft("Libre", "2026-10-22"),
+      "type-strength",
+      "Fuerza",
+    );
+    const snapshot = {
+      ...withBlock.snapshot,
+      blocks: [
+        {
+          ...withBlock.snapshot.blocks[0]!,
+          movements: ["019b4e0a-0000-7000-8000-000000000010"],
+        },
+      ],
+    };
+
+    const normalized = snapshotForSync(snapshot);
+
+    expect(normalized.blocks[0]).not.toHaveProperty("movements");
+    expect(withBlock.snapshot.blocks[0]?.movements).toBeUndefined();
+  });
 });
 
 describe("execution draft library", () => {

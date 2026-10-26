@@ -256,6 +256,10 @@ button { font: inherit; }
 .primary-button { padding: .65rem .9rem; border: 0; border-radius: .6rem; color: #f7faf5; background: #2c5536; font-weight: 800; cursor: pointer; }
 .primary-button:hover { background: #244a2e; }
 .primary-button:focus-visible { outline: 3px solid #c7d9c9; outline-offset: 2px; }
+.secondary-button { padding: .55rem .8rem; border: 1px solid #c3d0c1; border-radius: .6rem; color: #2c5536; background: #f4f8f1; font-weight: 800; cursor: pointer; }
+.secondary-button:hover { background: #e9f1e5; }
+.secondary-button:focus-visible { outline: 3px solid #c7d9c9; outline-offset: 2px; }
+.secondary-button:disabled { opacity: .55; cursor: not-allowed; }
 .link-button { padding: .35rem .2rem; border: 0; color: #4c6653; background: none; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .link-button:hover { color: #244a2e; }
 .link-button:focus-visible { outline: 3px solid #c7d9c9; outline-offset: 2px; }
@@ -305,6 +309,19 @@ button { font: inherit; }
 .draft-block-type { display: grid; gap: .3rem; }
 .draft-block-remove { align-self: end; }
 .draft-block-title { display: grid; gap: .35rem; }
+.draft-block-movements { display: grid; gap: .55rem; padding-top: .15rem; }
+.draft-block-movements-heading { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.draft-block-movements-heading > span:first-child { color: #34463a; font-size: .78rem; font-weight: 800; }
+.draft-block-movements-heading > span:last-child { padding: .15rem .5rem; border-radius: 999px; color: #33543b; background: #e4eee3; font-size: .7rem; font-weight: 800; }
+.draft-movement-list { display: grid; gap: .6rem; margin: 0; padding: 0; list-style: none; }
+.draft-movement { display: grid; gap: .35rem; padding: .65rem .7rem; border: 1px solid #e0e7dd; border-radius: .65rem; background: #fbfcfa; }
+.draft-movement-heading { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.draft-movement-name { color: #263329; font-size: .9rem; }
+.draft-movement-actions { display: inline-flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
+.draft-movement-confirm { color: #8a4a45; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; }
+.draft-add-movement { display: flex; align-items: end; gap: .6rem; flex-wrap: wrap; margin-top: .15rem; }
+.draft-add-movement label { display: grid; gap: .3rem; flex: 1 1 12rem; min-width: 0; }
+.draft-add-movement label > span { color: #34463a; font-size: .78rem; font-weight: 800; }
 .draft-editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #e2e7df; }
 .draft-editor-save { margin: 0; color: #657267; font-size: .8rem; font-weight: 700; }
 .draft-add-block { display: flex; align-items: end; gap: .75rem; margin-top: 1rem; padding: .9rem 1rem; border: 1px dashed #c3d0c1; border-radius: .8rem; background: #fafcf8; }
@@ -319,5 +336,5 @@ button { font: inherit; }
   .sync-badge { justify-self: start; }
   .draft-block-heading { grid-template-columns: 2rem minmax(0, 1fr); }
   .draft-block-remove { grid-column: 2; justify-self: start; }
-  .draft-editor-footer, .draft-add-block { align-items: stretch; flex-direction: column; }
+  .draft-editor-footer, .draft-add-block, .draft-add-movement { align-items: stretch; flex-direction: column; }
 }

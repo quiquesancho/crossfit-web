@@ -9,6 +9,7 @@ import {
   addDraftBlock,
   createExecutionDraft,
   createFreeTrainingDraft,
+  updateDraftBlock,
 } from "./drafts";
 import { ExecutionRecordsScreen } from "./ExecutionRecordsScreen";
 
@@ -30,6 +31,43 @@ const blockTypes = [
   },
 ];
 
+const movements = [
+  {
+    id: "019b4e0a-0000-7000-8000-000000000010",
+    code: "power-clean",
+    name: "Power clean",
+    familyCode: "weightlifting",
+  },
+  {
+    id: "019b4e0a-0000-7000-8000-000000000011",
+    code: "deadlift",
+    name: "Deadlift",
+    familyCode: "weightlifting",
+  },
+];
+
+const powerCleanId = movements[0]!.id;
+
+function jsonResponse(payload: unknown): Promise<Response> {
+  return Promise.resolve(
+    new Response(JSON.stringify(payload), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+}
+
+function stubCatalogs() {
+  const mock = vi.fn((input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input.toString();
+    return jsonResponse(
+      url.includes("/catalog/movements") ? { movements } : { entries: blockTypes },
+    );
+  });
+  vi.stubGlobal("fetch", mock);
+  return mock;
+}
+
 const plannedSession: PlannedSession = {
   id: "019b4e0a-0000-7000-8000-000000000041",
   externalId: "session-1",
@@ -42,15 +80,7 @@ const plannedSession: PlannedSession = {
 };
 
 beforeEach(() => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ entries: blockTypes }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    ),
-  );
+  stubCatalogs();
 });
 
 afterEach(async () => {
@@ -216,5 +246,187 @@ describe("ExecutionRecordsScreen", () => {
 
     const button = await screen.findByRole("button", { name: "Sincronizar Vacío" });
     expect((button as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("adds catalogue movements and stores their series in the draft", async () => {
+    render(<ExecutionRecordsScreen onOpenPlannedDraft={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Todavía no hay registros")).toBeDefined());
+
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo entrenamiento libre" }));
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Fuerza libre" } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear y editar" }));
+    expect(await screen.findByRole("heading", { name: "Fuerza libre" })).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Añadir bloque" }));
+
+    const picker = await screen.findByLabelText("Movimiento para el bloque 1");
+    fireEvent.change(picker, { target: { value: powerCleanId } });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir movimiento al bloque 1" }));
+
+    expect(await screen.findByText("Series de Power clean")).toBeDefined();
+    expect(screen.getByText("Sin series registradas.")).toBeDefined();
+    expect(screen.getByText("Movimientos")).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Añadir primera serie" }));
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+    const repetitions = screen.getByLabelText("Repeticiones de la serie 1 de Power clean");
+    fireEvent.change(repetitions, { target: { value: "3" } });
+    fireEvent.blur(repetitions);
+    const weight = screen.getByLabelText("Peso usado en la serie 1 de Power clean");
+    fireEvent.change(weight, { target: { value: "80" } });
+    fireEvent.blur(weight);
+
+    await waitFor(async () => {
+      const [stored] = await crossfitDatabase.executionDrafts.toArray();
+      expect(stored?.snapshot.blocks[0]?.attempts).toEqual([
+        expect.objectContaining({
+          movementId: powerCleanId,
+          position: 1,
+          status: "completed",
+          repetitions: 3,
+          weight: { amount: 80, unit: "kg" },
+        }),
+      ]);
+    });
+    expect(screen.getByText("1 serie · 3 repeticiones · Volumen 240 kg")).toBeDefined();
+  });
+
+  it("hides movement series when the block is marked without metrics", async () => {
+    render(<ExecutionRecordsScreen onOpenPlannedDraft={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Todavía no hay registros")).toBeDefined());
+
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo entrenamiento libre" }));
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Fuerza libre" } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear y editar" }));
+    expect(await screen.findByRole("heading", { name: "Fuerza libre" })).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Añadir bloque" }));
+
+    const picker = await screen.findByLabelText("Movimiento para el bloque 1");
+    fireEvent.change(picker, { target: { value: powerCleanId } });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir movimiento al bloque 1" }));
+    expect(await screen.findByText("Series de Power clean")).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Realizado" }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Sin métricas" }));
+
+    expect(
+      screen.getByText(
+        "Bloque sin métricas: las series no se guardarán al sincronizar.",
+      ),
+    ).toBeDefined();
+    expect(screen.queryByText("Series de Power clean")).toBeNull();
+  });
+
+  it("removes a movement and its series after confirmation", async () => {
+    render(<ExecutionRecordsScreen onOpenPlannedDraft={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Todavía no hay registros")).toBeDefined());
+
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo entrenamiento libre" }));
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Fuerza libre" } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear y editar" }));
+    expect(await screen.findByRole("heading", { name: "Fuerza libre" })).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Añadir bloque" }));
+
+    const picker = await screen.findByLabelText("Movimiento para el bloque 1");
+    fireEvent.change(picker, { target: { value: powerCleanId } });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir movimiento al bloque 1" }));
+    expect(await screen.findByText("Series de Power clean")).toBeDefined();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Quitar Power clean del bloque 1" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByText("Series de Power clean")).toBeDefined();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Quitar Power clean del bloque 1" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Confirmar quitar Power clean del bloque 1",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Añade un movimiento para registrar sus series."),
+      ).toBeDefined(),
+    );
+    await waitFor(async () => {
+      const [stored] = await crossfitDatabase.executionDrafts.toArray();
+      expect(stored?.snapshot.blocks[0]?.attempts).toBeUndefined();
+    });
+  });
+
+  it("synchronizes movement series and shows them read-only", async () => {
+    const base = addDraftBlock(
+      createFreeTrainingDraft("Fuerza libre", "2026-10-22"),
+      blockTypes[1]!.id,
+      "Fuerza",
+    );
+    const blockId = base.snapshot.blocks[0]!.id;
+    const draft = updateDraftBlock(base, blockId, {
+      status: "completed",
+      movements: [powerCleanId],
+      attempts: [
+        {
+          id: "019b4e0a-0000-7000-8000-000000000071",
+          movementId: powerCleanId,
+          position: 1,
+          status: "completed",
+          repetitions: 3,
+          weight: { amount: 80, unit: "kg" },
+        },
+      ],
+    });
+    await crossfitDatabase.executionDrafts.add(draft);
+
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        return jsonResponse({
+          id: draft.id,
+          revision: 1,
+          status: "draft",
+          updatedAt: "2026-10-22T10:05:00.000Z",
+          result: "persisted",
+        });
+      }
+      const url = typeof input === "string" ? input : input.toString();
+      return jsonResponse(
+        url.includes("/catalog/movements") ? { movements } : { entries: blockTypes },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ExecutionRecordsScreen onOpenPlannedDraft={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText("Fuerza libre")).toBeDefined());
+
+    fireEvent.click(await screen.findByRole("button", { name: "Sincronizar Fuerza libre" }));
+    await waitFor(() => expect(screen.getByText("Sincronizado")).toBeDefined());
+
+    const put = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
+    const body = JSON.parse(String(put?.[1]?.body)) as {
+      blocks: Array<{ movements?: string[]; attempts?: Array<Record<string, unknown>> }>;
+    };
+    expect(body.blocks[0]).not.toHaveProperty("movements");
+    expect(body.blocks[0]?.attempts).toEqual([
+      expect.objectContaining({
+        movementId: powerCleanId,
+        repetitions: 3,
+        weight: { amount: 80, unit: "kg" },
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    expect(await screen.findByText("Series de Power clean")).toBeDefined();
+    expect(screen.getByText("80 kg × 3 reps")).toBeDefined();
+    expect(
+      screen.queryByLabelText("Repeticiones de la serie 1 de Power clean"),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar series de Power clean" }));
+    expect(
+      screen.getByLabelText("Repeticiones de la serie 1 de Power clean"),
+    ).toBeDefined();
   });
 });

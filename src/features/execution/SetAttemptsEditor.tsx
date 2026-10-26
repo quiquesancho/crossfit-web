@@ -4,11 +4,13 @@ import { MetricNumberInput } from "./MetricNumberInput";
 import {
   attemptSummaryText,
   attemptValueText,
-  attemptsForPrescription,
+  attemptMatchesAnchor,
+  attemptsForAnchor,
   createAttempt,
   duplicateAttempt,
   removeAttempt,
   updateAttempt,
+  type AttemptAnchor,
 } from "./attempts";
 import type { SetAttempt, SetAttemptStatus, WeightValue } from "./types";
 
@@ -25,18 +27,11 @@ const ATTEMPT_STATUS_LABELS: Record<SetAttemptStatus, string> = {
   skipped: "Omitida",
 };
 
-export function SetAttemptsEditor({
-  plannedPrescriptionId,
-  prescriptionName,
-  actualMovementName,
-  unit,
-  prescribedWeight,
-  defaultRepetitions,
-  allAttempts,
-  syncStatus,
-  onChange,
-}: {
-  plannedPrescriptionId: string;
+type SetAttemptsEditorAnchor =
+  | { plannedPrescriptionId: string; movementId?: undefined }
+  | { movementId: string; plannedPrescriptionId?: undefined };
+
+type SetAttemptsEditorProps = {
   prescriptionName: string;
   actualMovementName?: string;
   unit: string;
@@ -45,8 +40,25 @@ export function SetAttemptsEditor({
   allAttempts: SetAttempt[] | undefined;
   syncStatus?: "pending" | "synchronized" | "error";
   onChange: (attempts: SetAttempt[] | undefined) => void;
-}) {
-  const attempts = attemptsForPrescription(allAttempts, plannedPrescriptionId);
+} & SetAttemptsEditorAnchor;
+
+export function SetAttemptsEditor({
+  plannedPrescriptionId,
+  movementId,
+  prescriptionName,
+  actualMovementName,
+  unit,
+  prescribedWeight,
+  defaultRepetitions,
+  allAttempts,
+  syncStatus,
+  onChange,
+}: SetAttemptsEditorProps) {
+  const anchor: AttemptAnchor =
+    plannedPrescriptionId !== undefined
+      ? { plannedPrescriptionId }
+      : { movementId: movementId ?? "" };
+  const attempts = attemptsForAnchor(allAttempts, anchor);
   const summary = attemptSummaryText(attempts);
   const [editing, setEditing] = useState(false);
   const synchronized = syncStatus === "synchronized";
@@ -58,22 +70,20 @@ export function SetAttemptsEditor({
 
   function apply(next: SetAttempt[]) {
     const others = (allAttempts ?? []).filter(
-      (attempt) => attempt.plannedPrescriptionId !== plannedPrescriptionId,
+      (attempt) => !attemptMatchesAnchor(attempt, anchor),
     );
     const merged = [...others, ...next];
     onChange(merged.length > 0 ? merged : undefined);
   }
 
   function addAttempt() {
-    apply(
-      [
-        ...attempts,
-        createAttempt(plannedPrescriptionId, allAttempts, {
-          weight: prescribedWeight,
-          repetitions: defaultRepetitions,
-        }),
-      ],
-    );
+    apply([
+      ...attempts,
+      createAttempt(anchor, allAttempts, {
+        weight: prescribedWeight,
+        repetitions: defaultRepetitions,
+      }),
+    ]);
   }
 
   function cloneLastAttempt() {
