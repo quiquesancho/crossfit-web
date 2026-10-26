@@ -174,6 +174,57 @@ button { font: inherit; }
 .substitution-note { grid-column: 1 / -1; }
 .substitution-actions { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; margin-top: .65rem; }
 .prescription-substitution-summary { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-top: .55rem; color: #59655b; font-size: .78rem; }
+.prescription-substitution-summary strong { color: #34463a; }
+.prescription-substitution-badge { display: inline-flex; align-items: center; gap: .2rem; margin-left: .4rem; padding: .1rem .5rem; border: 1px solid #dcc08b; border-radius: 999px; color: #89601f; background: #f5ead5; font-size: .7rem; font-weight: 800; vertical-align: middle; }
+
+/* Set attempts */
+.set-attempts { margin-top: .75rem; padding-top: .65rem; border-top: 1px dashed #cdd8c9; }
+.set-attempts-header { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.set-attempts-title { color: #34463a; font-size: .78rem; font-weight: 800; }
+.set-attempts-actions { display: inline-flex; gap: .6rem; }
+.set-attempts-empty { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: .3rem; color: #737e74; font-size: .78rem; }
+.set-attempt-list { display: grid; gap: .55rem; margin: .55rem 0 0; padding: 0; list-style: none; }
+.set-attempt { padding: .55rem .6rem; border: 1px solid #dbe3d7; border-radius: .55rem; background: #fff; }
+.set-attempt-heading { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.set-attempt-heading strong { color: #34463a; font-size: .78rem; }
+.set-attempt-status { display: inline-flex; gap: .25rem; }
+.set-attempt-status-option { padding: .3rem .5rem; border: 1px solid #cfd7cd; border-radius: 999px; color: #526054; background: #fff; cursor: pointer; font-size: .68rem; font-weight: 750; }
+.set-attempt-status-option:hover { border-color: #8fa291; background: #f3f6f1; }
+.set-attempt-status-option:focus-visible { outline: 3px solid #c7d9c9; outline-offset: 2px; }
+.set-attempt-status-option-active { border-color: var(--attempt-color, #536055); color: var(--attempt-color, #536055); background: var(--attempt-background, #edf0eb); }
+.set-attempt-status-completed { --attempt-color: #2f6840; --attempt-background: #e0eee2; }
+.set-attempt-status-partial { --attempt-color: #89601f; --attempt-background: #f5ead5; }
+.set-attempt-status-failed { --attempt-color: #a13c36; --attempt-background: #f6e1df; }
+.set-attempt-remove { margin-left: auto; color: #8a4a45; }
+.set-attempt-readonly { display: grid; gap: .3rem; }
+.set-attempt-readonly-heading { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.set-attempt-readonly-title { color: #34463a; font-size: .78rem; font-weight: 800; }
+.set-attempt-readonly-value { color: #263329; font-size: .85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.set-attempt-readonly-note { color: #69756b; font-size: .76rem; font-style: italic; }
+.set-attempt-badge { padding: .12rem .45rem; border-radius: 999px; font-size: .64rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
+.set-attempt-badge-completed { color: #2f6840; background: #e0eee2; }
+.set-attempt-badge-partial { color: #89601f; background: #f5ead5; }
+.set-attempt-badge-failed { color: #a13c36; background: #f6e1df; }
+.set-attempt-badge-skipped { color: #526054; background: #edf0eb; }
+.set-attempt-fields { display: flex; align-items: flex-end; gap: .6rem; flex-wrap: wrap; margin-top: .5rem; }
+.set-attempt-fields label { display: grid; align-content: start; gap: .25rem; color: #77827a; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
+.set-attempt-fields label > input,
+.set-attempt-weight input { min-height: 2rem; padding: .2rem .4rem; border: 1px solid #cbd5c9; border-radius: .4rem; color: #263329; background: #fff; font: inherit; font-size: .88rem; }
+.set-attempt-fields label > input:focus,
+.set-attempt-weight input:focus { border-color: #64806a; outline: 3px solid #dce8dc; }
+.set-attempt-fields label > input[inputmode],
+.set-attempt-weight input[inputmode] { width: 4.5rem; text-align: left; }
+.set-attempt-weight { display: inline-flex; align-items: center; gap: .35rem; }
+.set-attempt-note { flex: 1 1 12rem; }
+.set-attempt-note input { width: 100%; }
+.set-attempts-summary { margin: .55rem 0 0; color: #365a3d; font-size: .8rem; font-weight: 800; }
+@media (max-width: 560px) {
+  .set-attempt-fields { flex-direction: column; align-items: stretch; }
+  .set-attempt-fields label > input[inputmode],
+  .set-attempt-weight input[inputmode] { width: 100%; }
+  .set-attempt-weight { width: 100%; }
+  .set-attempt-note { flex: 0 0 auto; }
+}
 @media (max-width: 560px) {
   .feeling-label { margin-inline: .75rem; }
   .feeling-panel { margin-inline: .75rem; }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { useMovementNames } from "../catalog/movements";
 import {
   findDraftForSession,
   getOrCreateDraftForSession,
@@ -7,6 +8,8 @@ import {
   synchronizeExecutionDraft,
 } from "../execution/drafts";
 import { BlockRpeField, FeelingFields } from "../execution/FeelingFields";
+import { MetricNumberInput } from "../execution/MetricNumberInput";
+import { SetAttemptsEditor } from "../execution/SetAttemptsEditor";
 import {
   BLOCK_STATUS_LABELS,
   BLOCK_STATUS_OPTIONS,
@@ -69,6 +72,8 @@ const WORKOUT_FORMAT_LABELS: Record<string, string> = {
   for_time: "For Time",
   rounds_for_time: "Rounds For Time",
 };
+
+const SET_ATTEMPT_BLOCK_TYPES = new Set(["strength", "technique"]);
 
 type LoadDisplay =
   | { kind: "guidance"; text: string }
@@ -341,58 +346,6 @@ function amrapResultSummary(metrics: BlockExecutionMetrics | undefined): string 
   return parts.length > 0 ? parts.join(" + ") : null;
 }
 
-function MetricNumberInput({
-  id,
-  ariaLabel,
-  value,
-  placeholder,
-  integer = false,
-  onCommit,
-}: {
-  id: string;
-  ariaLabel: string;
-  value: number | undefined;
-  placeholder?: string;
-  integer?: boolean;
-  onCommit: (value: number | undefined) => void;
-}) {
-  const [text, setText] = useState(value === undefined ? "" : String(value));
-
-  useEffect(() => {
-    setText(value === undefined ? "" : String(value));
-  }, [value]);
-
-  function commit() {
-    const trimmed = text.trim();
-    if (trimmed === "") {
-      onCommit(undefined);
-      return;
-    }
-    const parsed = Number(trimmed.replace(",", "."));
-    if (!Number.isFinite(parsed) || parsed < 0 || (integer && !Number.isInteger(parsed))) {
-      setText(value === undefined ? "" : String(value));
-      return;
-    }
-    onCommit(parsed);
-  }
-
-  return (
-    <input
-      id={id}
-      type="text"
-      inputMode={integer ? "numeric" : "decimal"}
-      aria-label={ariaLabel}
-      value={text}
-      placeholder={placeholder}
-      onChange={(event) => setText(event.target.value)}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") event.currentTarget.blur();
-      }}
-    />
-  );
-}
-
 function LoadPartView({
   amount,
   unit,
@@ -460,8 +413,10 @@ function BlockAccordion({
     : [];
   const showHeaderDuration = Boolean(block.durationSeconds) && formatMeta.length === 0;
   const isStrengthBlock = block.blockType.code === "strength";
+  const supportsAttempts = SET_ATTEMPT_BLOCK_TYPES.has(block.blockType.code);
   const prescriptionMetrics = executionBlock?.metrics?.prescriptions ?? [];
   const substitutions = executionBlock?.substitutions ?? [];
+  const movementNames = useMovementNames(substitutions.map((item) => item.actualMovementId));
   const [substitutingId, setSubstitutingId] = useState<string | null>(null);
   const showMetrics =
     Boolean(executionBlock) &&
@@ -629,6 +584,9 @@ function BlockAccordion({
                 const substitution = substitutions.find(
                   (entry) => entry.plannedPrescriptionId === item.id,
                 );
+                const substitutedName = substitution
+                  ? movementNames[substitution.actualMovementId]
+                  : undefined;
                 const actualWeight = metricActualWeight(metric);
                 const prescribed = prescribedWeight(item.details);
                 const unit = weightUnit(item.details);
@@ -648,6 +606,11 @@ function BlockAccordion({
                       <strong>
                         {item.complex.name} · v{item.complex.versionNumber}
                       </strong>
+                    ) : null}
+                    {substitution ? (
+                      <span className="prescription-substitution-badge">
+                        → {substitutedName ?? "otro movimiento"}
+                      </span>
                     ) : null}
                     {entries.length > 0 ? (
                       <dl>
@@ -705,6 +668,21 @@ function BlockAccordion({
                       </dl>
                     ) : null}
                     {item.notes ? <p className="prescription-note">{item.notes}</p> : null}
+                    {showMetrics && supportsAttempts ? (
+                      <SetAttemptsEditor
+                        plannedPrescriptionId={item.id}
+                        prescriptionName={name}
+                        actualMovementName={substitutedName}
+                        unit={unit}
+                        prescribedWeight={prescribed}
+                        defaultRepetitions={
+                          numberDetail(item.details, "repetitions") ?? undefined
+                        }
+                        allAttempts={executionBlock?.attempts}
+                        syncStatus={draft?.syncStatus}
+                        onChange={(attempts) => changeExecutionBlock({ attempts })}
+                      />
+                    ) : null}
                     {draft ? (
                       <div className="prescription-substitution">
                         {substitutingId === item.id ? (
@@ -718,7 +696,14 @@ function BlockAccordion({
                         ) : (
                           <div className="prescription-substitution-summary">
                             <span>
-                              {substitution ? "Sustitución registrada" : "¿No has podido hacerlo?"}
+                              {substitution ? (
+                                <>
+                                  Sustituido por{" "}
+                                  <strong>{substitutedName ?? "otro movimiento"}</strong>
+                                </>
+                              ) : (
+                                "¿No has podido hacerlo?"
+                              )}
                             </span>
                             <button
                               type="button"
