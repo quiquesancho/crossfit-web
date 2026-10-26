@@ -213,16 +213,17 @@ button { font: inherit; }
 .set-attempt-fields label > input:focus,
 .set-attempt-weight input:focus { border-color: #64806a; outline: 3px solid #dce8dc; }
 .set-attempt-fields label > input[inputmode],
-.set-attempt-weight input[inputmode] { width: 4.5rem; text-align: left; }
-.set-attempt-weight { display: inline-flex; align-items: center; gap: .35rem; }
+.set-attempt-weight input[inputmode] { width: 4.5rem; min-width: 0; text-align: left; }
+.set-attempt-weight { display: inline-flex; align-items: center; gap: .35rem; min-width: 0; }
+.set-attempt-weight input[inputmode] { flex: 0 0 auto; }
 .set-attempt-note { flex: 1 1 12rem; }
 .set-attempt-note input { width: 100%; }
 .set-attempts-summary { margin: .55rem 0 0; color: #365a3d; font-size: .8rem; font-weight: 800; }
 @media (max-width: 560px) {
   .set-attempt-fields { flex-direction: column; align-items: stretch; }
-  .set-attempt-fields label > input[inputmode],
-  .set-attempt-weight input[inputmode] { width: 100%; }
+  .set-attempt-fields label > input[inputmode] { width: 100%; }
   .set-attempt-weight { width: 100%; }
+  .set-attempt-weight input[inputmode] { width: 100%; flex: 1 1 auto; }
   .set-attempt-note { flex: 0 0 auto; }
 }
 @media (max-width: 560px) {
@@ -320,7 +321,7 @@ button { font: inherit; }
 .draft-movement-actions { display: inline-flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
 .draft-movement-confirm { color: #8a4a45; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; }
 .draft-add-movement { display: flex; align-items: end; gap: .6rem; flex-wrap: wrap; margin-top: .15rem; }
-.draft-add-movement label { display: grid; gap: .3rem; flex: 1 1 12rem; min-width: 0; }
+.draft-add-movement label { display: grid; align-content: start; gap: .3rem; flex: 1 1 12rem; min-width: 0; }
 .draft-add-movement label > span { color: #34463a; font-size: .78rem; font-weight: 800; }
 .draft-editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #e2e7df; }
 .draft-editor-save { margin: 0; color: #657267; font-size: .8rem; font-weight: 700; }
@@ -337,4 +338,5 @@ button { font: inherit; }
   .draft-block-heading { grid-template-columns: 2rem minmax(0, 1fr); }
   .draft-block-remove { grid-column: 2; justify-self: start; }
   .draft-editor-footer, .draft-add-block, .draft-add-movement { align-items: stretch; flex-direction: column; }
+  .draft-add-movement label { flex: 0 0 auto; }
 }
