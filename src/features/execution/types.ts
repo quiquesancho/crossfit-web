@@ -76,6 +76,8 @@ export type SessionExecutionSnapshot = {
     status: BlockExecutionStatus;
     withoutMetrics?: boolean;
     notes?: string;
+    /** Local-only list of free-training movements. Stripped from the sync payload. */
+    movements?: string[];
     metrics?: BlockExecutionMetrics;
     feeling?: Feeling;
     substitutions?: Substitution[];
@@ -86,7 +88,10 @@ export type SessionExecutionSnapshot = {
 export type DraftBlock = SessionExecutionSnapshot["blocks"][number];
 
 export type DraftBlockChanges = Partial<
-  Pick<DraftBlock, "blockTypeId" | "title" | "status" | "withoutMetrics" | "notes">
+  Pick<
+    DraftBlock,
+    "blockTypeId" | "title" | "status" | "withoutMetrics" | "notes" | "movements" | "attempts"
+  >
 >;
 
 

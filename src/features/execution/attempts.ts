@@ -6,19 +6,54 @@ export type AttemptDefaultValues = {
   repetitions?: number;
 };
 
+/** An attempt belongs to exactly one planned prescription or one free-training movement. */
+export type AttemptAnchor =
+  | { plannedPrescriptionId: string }
+  | { movementId: string };
+
 export type AttemptSummary = {
   series: number;
   repetitions: number;
   volume: Array<{ amount: number; unit: string }>;
 };
 
+export function attemptMatchesAnchor(attempt: SetAttempt, anchor: AttemptAnchor): boolean {
+  return "plannedPrescriptionId" in anchor
+    ? attempt.plannedPrescriptionId === anchor.plannedPrescriptionId
+    : attempt.movementId === anchor.movementId;
+}
+
+export function attemptsForAnchor(
+  attempts: SetAttempt[] | undefined,
+  anchor: AttemptAnchor,
+): SetAttempt[] {
+  return (attempts ?? [])
+    .filter((attempt) => attemptMatchesAnchor(attempt, anchor))
+    .sort((left, right) => left.position - right.position);
+}
+
 export function attemptsForPrescription(
   attempts: SetAttempt[] | undefined,
   plannedPrescriptionId: string,
 ): SetAttempt[] {
-  return (attempts ?? [])
-    .filter((attempt) => attempt.plannedPrescriptionId === plannedPrescriptionId)
-    .sort((left, right) => left.position - right.position);
+  return attemptsForAnchor(attempts, { plannedPrescriptionId });
+}
+
+export function attemptsForMovement(
+  attempts: SetAttempt[] | undefined,
+  movementId: string,
+): SetAttempt[] {
+  return attemptsForAnchor(attempts, { movementId });
+}
+
+/** Movement ids used in a block, in the order their first series appears. */
+export function movementIdsForAttempts(attempts: SetAttempt[] | undefined): string[] {
+  const ordered = [...(attempts ?? [])].sort((left, right) => left.position - right.position);
+  const ids: string[] = [];
+  for (const attempt of ordered) {
+    if (attempt.movementId && !ids.includes(attempt.movementId)) ids.push(attempt.movementId);
+  }
+  return ids;
 }
 
 export function nextAttemptPosition(attempts: SetAttempt[] | undefined): number {
@@ -26,16 +61,20 @@ export function nextAttemptPosition(attempts: SetAttempt[] | undefined): number 
 }
 
 export function createAttempt(
-  plannedPrescriptionId: string,
+  anchor: AttemptAnchor,
   attempts: SetAttempt[] | undefined,
   defaults: AttemptDefaultValues = {},
 ): SetAttempt {
   const attempt: SetAttempt = {
     id: createUuidV7(),
-    plannedPrescriptionId,
     position: nextAttemptPosition(attempts),
     status: "completed",
   };
+  if ("plannedPrescriptionId" in anchor) {
+    attempt.plannedPrescriptionId = anchor.plannedPrescriptionId;
+  } else {
+    attempt.movementId = anchor.movementId;
+  }
   if (defaults.weight) attempt.weight = { ...defaults.weight };
   if (defaults.repetitions !== undefined) attempt.repetitions = defaults.repetitions;
   return attempt;

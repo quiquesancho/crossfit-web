@@ -10,7 +10,7 @@ function loadMovements(): Promise<Movement[]> {
   if (!pending) {
     pending = fetchMovements()
       .then((response) => {
-        cached = response.movements;
+        cached = Array.isArray(response.movements) ? response.movements : [];
         pending = null;
         return cached;
       })
@@ -20,6 +20,37 @@ function loadMovements(): Promise<Movement[]> {
       });
   }
   return pending;
+}
+
+/** Catalogue of movements, cached for the lifetime of the session. */
+export function useMovements(): {
+  movements: Movement[];
+  status: "loading" | "ready" | "error";
+} {
+  const [state, setState] = useState<{
+    movements: Movement[];
+    status: "loading" | "ready" | "error";
+  }>(() =>
+    cached
+      ? { movements: cached, status: "ready" }
+      : { movements: [], status: "loading" },
+  );
+
+  useEffect(() => {
+    let active = true;
+    loadMovements()
+      .then((movements) => {
+        if (active) setState({ movements, status: "ready" });
+      })
+      .catch(() => {
+        if (active) setState({ movements: [], status: "error" });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return state;
 }
 
 /**

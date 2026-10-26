@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 
 import type { CatalogEntry } from "../catalog/api";
+import { useMovementNames, useMovements } from "../catalog/movements";
+import { movementIdsForAttempts } from "./attempts";
 import {
   addDraftBlock,
   deleteExecutionDraft,
@@ -17,9 +19,18 @@ import {
   hasNoMetrics,
 } from "./status";
 import { FeelingFields } from "./FeelingFields";
-import type { BlockExecutionStatus, ExecutionDraft, Feeling } from "./types";
+import { DraftBlockMovements } from "./DraftBlockMovements";
+import type { BlockExecutionStatus, DraftBlock, ExecutionDraft, Feeling } from "./types";
 
 type SaveState = "saved" | "saving" | "error";
+
+function movementIdsForBlock(block: DraftBlock): string[] {
+  const ids = [...(block.movements ?? [])];
+  for (const movementId of movementIdsForAttempts(block.attempts)) {
+    if (!ids.includes(movementId)) ids.push(movementId);
+  }
+  return ids;
+}
 
 export function ExecutionDraftEditor({
   draft,
@@ -41,6 +52,11 @@ export function ExecutionDraftEditor({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  const movementNames = useMovementNames(
+    current.snapshot.blocks.flatMap((block) => movementIdsForBlock(block)),
+  );
+  const { movements, status: movementsStatus } = useMovements();
 
   function commit(update: (current: ExecutionDraft) => ExecutionDraft) {
     const next = update(latestDraft.current);
@@ -89,6 +105,34 @@ export function ExecutionDraftEditor({
         status: active ? "draft" : status,
         withoutMetrics:
           status === "skipped" || active ? undefined : hasNoMetrics(block),
+      });
+    });
+  }
+
+  function addMovement(blockId: string, movementId: string) {
+    if (!movementId) return;
+    commit((current) => {
+      const block = current.snapshot.blocks.find((entry) => entry.id === blockId);
+      if (!block) return current;
+      const movements = block.movements ?? [];
+      if (movements.includes(movementId)) return current;
+      return updateDraftBlock(current, blockId, {
+        movements: [...movements, movementId],
+      });
+    });
+  }
+
+  function removeMovement(blockId: string, movementId: string) {
+    commit((current) => {
+      const block = current.snapshot.blocks.find((entry) => entry.id === blockId);
+      if (!block) return current;
+      const movements = (block.movements ?? []).filter((id) => id !== movementId);
+      const attempts = (block.attempts ?? []).filter(
+        (attempt) => attempt.movementId !== movementId,
+      );
+      return updateDraftBlock(current, blockId, {
+        movements: movements.length > 0 ? movements : undefined,
+        attempts: attempts.length > 0 ? attempts : undefined,
       });
     });
   }
@@ -330,6 +374,21 @@ export function ExecutionDraftEditor({
                       ) : null}
                     </div>
                   </fieldset>
+
+                  <DraftBlockMovements
+                    block={block}
+                    movementNames={movementNames}
+                    movements={movements}
+                    movementsStatus={movementsStatus}
+                    syncStatus={current.syncStatus}
+                    onAdd={(movementId) => addMovement(block.id, movementId)}
+                    onRemove={(movementId) => removeMovement(block.id, movementId)}
+                    onAttemptsChange={(attempts) =>
+                      commit((current) =>
+                        updateDraftBlock(current, block.id, { attempts }),
+                      )
+                    }
+                  />
 
                   <label className="block-notes">
                     <span>Notas del bloque</span>

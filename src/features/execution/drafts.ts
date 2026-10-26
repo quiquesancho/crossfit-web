@@ -158,38 +158,42 @@ export function snapshotForSync(snapshot: SessionExecutionSnapshot): SessionExec
   return {
     ...snapshot,
     blocks: snapshot.blocks.map((block) => {
+      // The movement list only lives in the local draft: the API persists the
+      // movements through their attempts and rejects unsupported block keys.
+      const rest = { ...block };
+      delete rest.movements;
       const recorded =
-        block.status === "completed" ||
-        block.status === "partial" ||
-        block.status === "completed_without_metric";
-      if (!recorded || block.withoutMetrics || block.status === "completed_without_metric") {
-        const rest = { ...block };
-        delete rest.metrics;
-        delete rest.attempts;
-        return rest;
+        rest.status === "completed" ||
+        rest.status === "partial" ||
+        rest.status === "completed_without_metric";
+      if (!recorded || rest.withoutMetrics || rest.status === "completed_without_metric") {
+        const withoutMetrics = { ...rest };
+        delete withoutMetrics.metrics;
+        delete withoutMetrics.attempts;
+        return withoutMetrics;
       }
       const attempts =
-        block.attempts && block.attempts.length > 0 ? block.attempts : undefined;
-      if (!block.metrics) return { ...block, attempts };
+        rest.attempts && rest.attempts.length > 0 ? rest.attempts : undefined;
+      if (!rest.metrics) return { ...rest, attempts };
 
-      const prescriptions = block.metrics.prescriptions
+      const prescriptions = rest.metrics.prescriptions
         ?.map((item) => {
-          const { actualWeightKg, ...rest } = item;
+          const { actualWeightKg, ...itemRest } = item;
           if (
-            rest.actualWeight === undefined &&
+            itemRest.actualWeight === undefined &&
             typeof actualWeightKg === "number" &&
             Number.isFinite(actualWeightKg)
           ) {
-            return { ...rest, actualWeight: { amount: actualWeightKg, unit: "kg" } };
+            return { ...itemRest, actualWeight: { amount: actualWeightKg, unit: "kg" } };
           }
-          return rest;
+          return itemRest;
         })
         .filter((item) => item.actualWeight !== undefined || item.loadStatus !== undefined);
 
       return {
-        ...block,
+        ...rest,
         metrics: {
-          ...block.metrics,
+          ...rest.metrics,
           prescriptions:
             prescriptions && prescriptions.length > 0 ? prescriptions : undefined,
         },
