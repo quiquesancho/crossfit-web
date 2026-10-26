@@ -41,10 +41,11 @@ export function formatWeekRange(weekStart: string): string {
 }
 
 export function formatSessionDate(value: string): string {
-  return new Intl.DateTimeFormat("es-ES", {
+  const formatted = new Intl.DateTimeFormat("es-ES", {
     weekday: "long",
     day: "numeric",
     month: "long",
     timeZone: "UTC",
   }).format(dateFromIso(value));
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
