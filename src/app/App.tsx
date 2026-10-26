@@ -2,10 +2,17 @@ import { useState } from "react";
 
 import { ExecutionRecordsScreen } from "../features/execution/ExecutionRecordsScreen";
 import type { ExecutionDraft } from "../features/execution/types";
+import { HistoryScreen } from "../features/history/HistoryScreen";
 import { weekStartOf } from "../features/planning/dates";
 import { PlanningWeekScreen } from "../features/planning/PlanningWeekScreen";
 
-type View = "planning" | "records";
+type View = "planning" | "records" | "history";
+
+const VIEW_LABELS: Record<View, string> = {
+  planning: "Plan semanal",
+  records: "Mis registros",
+  history: "Historial",
+};
 
 export function App() {
   const [view, setView] = useState<View>("planning");
@@ -15,6 +22,12 @@ export function App() {
   function openPlannedDraft(draft: ExecutionDraft) {
     setPlanningWeekStart(weekStartOf(draft.executionDate));
     setFocusedSessionId(draft.plannedSessionId);
+    setView("planning");
+  }
+
+  function openPlannedSession(plannedSessionId: string, executionDate: string) {
+    setPlanningWeekStart(weekStartOf(executionDate));
+    setFocusedSessionId(plannedSessionId);
     setView("planning");
   }
 
@@ -28,7 +41,7 @@ export function App() {
           <h1>CrossFit</h1>
         </div>
         <span className="status-badge">
-          {view === "planning" ? "Plan semanal" : "Mis registros"}
+          {VIEW_LABELS[view]}
         </span>
       </header>
       <main className="app-shell">
@@ -47,6 +60,13 @@ export function App() {
           >
             Mis registros
           </button>
+          <button
+            type="button"
+            aria-pressed={view === "history"}
+            onClick={() => setView("history")}
+          >
+            Historial
+          </button>
         </nav>
 
         <section hidden={view !== "planning"}>
@@ -59,6 +79,10 @@ export function App() {
 
         {view === "records" ? (
           <ExecutionRecordsScreen onOpenPlannedDraft={openPlannedDraft} />
+        ) : null}
+
+        {view === "history" ? (
+          <HistoryScreen onOpenPlannedSession={openPlannedSession} />
         ) : null}
       </main>
     </>
