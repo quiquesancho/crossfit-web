@@ -227,6 +227,8 @@ button { font: inherit; }
   .set-attempt-weight { width: 100%; }
   .set-attempt-weight input[inputmode] { width: 100%; flex: 1 1 auto; }
   .set-attempt-note { flex: 0 0 auto; }
+  .draft-editor-toolbar { flex-wrap: wrap; }
+  .draft-editor-sync { flex-wrap: wrap; }
 }
 @media (max-width: 560px) {
   .feeling-label { margin-inline: .75rem; }
