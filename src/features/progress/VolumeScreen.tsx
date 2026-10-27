@@ -267,7 +267,11 @@ export function VolumeScreen() {
             <StatCard
               label="Tiempo técnico"
               value={formatDuration(totals.technicalDurationSeconds)}
-              detail={`${formatDuration(totals.durationSeconds)} registrados`}
+              detail={
+                totals.durationSeconds > 0
+                  ? `${formatDuration(totals.durationSeconds)} registrados`
+                  : "Sin tiempo registrado"
+              }
             />
             <StatCard
               label="Sesiones"
