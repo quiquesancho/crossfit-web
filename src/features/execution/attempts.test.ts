@@ -131,6 +131,9 @@ describe("set attempt helpers", () => {
     );
     expect(attemptValueText(attempt({ repetitions: 1 }))).toBe("1 rep");
     expect(attemptValueText(attempt({ weight: { amount: 60, unit: "kg" } }))).toBe("60 kg");
+    expect(attemptValueText(attempt({ repetitions: 3, durationSeconds: 90 }))).toBe(
+      "3 reps × 90 s",
+    );
     expect(attemptValueText(attempt({}))).toBe("Sin datos");
   });
 
@@ -145,9 +148,27 @@ describe("set attempt helpers", () => {
     expect(summarizeAttempts(attempts)).toEqual({
       series: 3,
       repetitions: 12,
+      durationSeconds: 0,
       volume: [{ amount: 625, unit: "kg" }],
     });
     expect(attemptSummaryText(attempts)).toBe("3 series · 12 repeticiones · Volumen 625 kg");
     expect(attemptSummaryText([])).toBeNull();
+  });
+
+  it("adds technical practice time to the summary", () => {
+    const attempts = [
+      attempt({ id: "a", position: 1, repetitions: 3, durationSeconds: 90 }),
+      attempt({ id: "b", position: 2, repetitions: 3, durationSeconds: 120 }),
+    ];
+
+    expect(summarizeAttempts(attempts)).toEqual({
+      series: 2,
+      repetitions: 6,
+      durationSeconds: 210,
+      volume: [],
+    });
+    expect(attemptSummaryText(attempts)).toBe(
+      "2 series · 6 repeticiones · Práctica 210 s",
+    );
   });
 });

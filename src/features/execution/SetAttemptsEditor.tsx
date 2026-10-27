@@ -37,6 +37,7 @@ type SetAttemptsEditorProps = {
   unit: string;
   prescribedWeight?: WeightValue;
   defaultRepetitions?: number;
+  showDuration?: boolean;
   allAttempts: SetAttempt[] | undefined;
   syncStatus?: "pending" | "synchronized" | "error";
   onChange: (attempts: SetAttempt[] | undefined) => void;
@@ -50,6 +51,7 @@ export function SetAttemptsEditor({
   unit,
   prescribedWeight,
   defaultRepetitions,
+  showDuration = false,
   allAttempts,
   syncStatus,
   onChange,
@@ -233,6 +235,20 @@ export function SetAttemptsEditor({
                     <span className="load-unit">{unit}</span>
                   </span>
                 </label>
+                {showDuration ? (
+                  <label>
+                    <span>Tiempo (s)</span>
+                    <MetricNumberInput
+                      id={`attempt-duration-${attempt.id}`}
+                      ariaLabel={`Tiempo de práctica de la serie ${index + 1} de ${prescriptionName}`}
+                      value={attempt.durationSeconds}
+                      placeholder="0"
+                      onCommit={(value) =>
+                        apply(updateAttempt(allAttempts, attempt.id, { durationSeconds: value }))
+                      }
+                    />
+                  </label>
+                ) : null}
                 <label className="set-attempt-note">
                   <span>Nota</span>
                   <input

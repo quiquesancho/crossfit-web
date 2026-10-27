@@ -678,6 +678,7 @@ function BlockAccordion({
                         defaultRepetitions={
                           numberDetail(item.details, "repetitions") ?? undefined
                         }
+                        showDuration={block.blockType.code === "technique"}
                         allAttempts={executionBlock?.attempts}
                         syncStatus={draft?.syncStatus}
                         onChange={(attempts) => changeExecutionBlock({ attempts })}

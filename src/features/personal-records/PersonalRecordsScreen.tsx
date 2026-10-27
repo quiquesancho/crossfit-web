@@ -463,7 +463,7 @@ export function PersonalRecordsScreen() {
     <section aria-labelledby="records-title">
       <div className="week-toolbar">
         <div>
-          <p className="eyebrow">Progreso</p>
+          <p className="eyebrow">Marcas personales</p>
           <h2 id="records-title">Marcas</h2>
         </div>
         <button
