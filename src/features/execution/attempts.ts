@@ -14,6 +14,7 @@ export type AttemptAnchor =
 export type AttemptSummary = {
   series: number;
   repetitions: number;
+  durationSeconds: number;
   volume: Array<{ amount: number; unit: string }>;
 };
 
@@ -94,6 +95,7 @@ export function duplicateAttempt(
   if (attempt.complexVersionId) copy.complexVersionId = attempt.complexVersionId;
   if (attempt.weight) copy.weight = { ...attempt.weight };
   if (attempt.repetitions !== undefined) copy.repetitions = attempt.repetitions;
+  if (attempt.durationSeconds !== undefined) copy.durationSeconds = attempt.durationSeconds;
   if (attempt.note !== undefined) copy.note = attempt.note;
   return copy;
 }
@@ -108,6 +110,7 @@ export function updateAttempt(
     const next: SetAttempt = { ...attempt, ...changes };
     if (next.weight === undefined) delete next.weight;
     if (next.repetitions === undefined) delete next.repetitions;
+    if (next.durationSeconds === undefined) delete next.durationSeconds;
     if (next.note === undefined) delete next.note;
     if (next.plannedPrescriptionId === undefined) delete next.plannedPrescriptionId;
     if (next.movementId === undefined) delete next.movementId;
@@ -126,8 +129,10 @@ export function summarizeAttempts(attempts: SetAttempt[] | undefined): AttemptSu
   const counted = (attempts ?? []).filter((attempt) => COUNTED_STATUSES.has(attempt.status));
   const volumeByUnit = new Map<string, number>();
   let repetitions = 0;
+  let durationSeconds = 0;
   for (const attempt of counted) {
     if (attempt.repetitions !== undefined) repetitions += attempt.repetitions;
+    if (attempt.durationSeconds !== undefined) durationSeconds += attempt.durationSeconds;
     if (attempt.weight && attempt.repetitions !== undefined) {
       const current = volumeByUnit.get(attempt.weight.unit) ?? 0;
       volumeByUnit.set(attempt.weight.unit, current + attempt.weight.amount * attempt.repetitions);
@@ -136,6 +141,7 @@ export function summarizeAttempts(attempts: SetAttempt[] | undefined): AttemptSu
   return {
     series: counted.length,
     repetitions,
+    durationSeconds,
     volume: [...volumeByUnit.entries()].map(([unit, amount]) => ({ amount, unit })),
   };
 }
@@ -147,6 +153,9 @@ export function attemptValueText(attempt: SetAttempt): string {
   }
   if (attempt.repetitions !== undefined) {
     parts.push(`${attempt.repetitions} ${attempt.repetitions === 1 ? "rep" : "reps"}`);
+  }
+  if (attempt.durationSeconds !== undefined) {
+    parts.push(`${formatAmount(attempt.durationSeconds)} s`);
   }
   return parts.length > 0 ? parts.join(" × ") : "Sin datos";
 }
@@ -160,6 +169,9 @@ export function attemptSummaryText(attempts: SetAttempt[] | undefined): string |
   ];
   const volume = summary.volume.map(({ amount, unit }) => `${formatAmount(amount)} ${unit}`);
   if (volume.length > 0) parts.push(`Volumen ${volume.join(" + ")}`);
+  if (summary.durationSeconds > 0) {
+    parts.push(`Práctica ${formatAmount(summary.durationSeconds)} s`);
+  }
   return parts.join(" · ");
 }
 

@@ -3,8 +3,8 @@ import { useState } from "react";
 import { ExecutionRecordsScreen } from "../features/execution/ExecutionRecordsScreen";
 import type { ExecutionDraft } from "../features/execution/types";
 import { HistoryScreen } from "../features/history/HistoryScreen";
-import { PersonalRecordsScreen } from "../features/personal-records/PersonalRecordsScreen";
 import { weekStartOf } from "../features/planning/dates";
+import { ProgressScreen } from "../features/progress/ProgressScreen";
 import { PlanningWeekScreen } from "../features/planning/PlanningWeekScreen";
 
 type View = "planning" | "records" | "history" | "marks";
@@ -13,7 +13,7 @@ const VIEW_LABELS: Record<View, string> = {
   planning: "Plan semanal",
   records: "Mis registros",
   history: "Historial",
-  marks: "Marcas",
+  marks: "Progreso",
 };
 
 export function App() {
@@ -74,7 +74,7 @@ export function App() {
             aria-pressed={view === "marks"}
             onClick={() => setView("marks")}
           >
-            Marcas
+            Progreso
           </button>
         </nav>
 
@@ -94,7 +94,7 @@ export function App() {
           <HistoryScreen onOpenPlannedSession={openPlannedSession} />
         ) : null}
 
-        {view === "marks" ? <PersonalRecordsScreen /> : null}
+        {view === "marks" ? <ProgressScreen /> : null}
       </main>
     </>
   );

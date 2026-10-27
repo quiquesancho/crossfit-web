@@ -20,3 +20,14 @@ Opening a planned session hydrates the draft already stored for it, so the athle
 
 - planned drafts reopen in the weekly planning view, on the week and session they belong to;
 - free trainings are created without a planned session and edited locally (title, date, general note and blocks with type, title, status and notes).
+
+## Progress
+
+The top-level **Progreso** tab groups two views:
+
+- **Marcas**: pending suggestions, current personal records, paginated history and manual historical records for movements and complex versions.
+- **Volumen**: accumulated repetitions, bar volume, technical practice time, sessions and last practice date for 4 weeks, 12 weeks, the last year or a custom range. The breakdown can group by movement or movement family.
+
+The volume view calls `GET /api/v1/progress/volume`; it only counts completed sessions and attempts and explains that complex volume is not attributed to a movement.
+
+Technique blocks show an optional **Tiempo (s)** field for each set. The value is stored as `durationSeconds` in the execution snapshot and included in the attempt summary.

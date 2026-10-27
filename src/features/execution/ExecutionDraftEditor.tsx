@@ -381,6 +381,10 @@ export function ExecutionDraftEditor({
                     movements={movements}
                     movementsStatus={movementsStatus}
                     syncStatus={current.syncStatus}
+                    showDuration={
+                      blockTypes.find((entry) => entry.id === block.blockTypeId)?.code ===
+                      "technique"
+                    }
                     onAdd={(movementId) => addMovement(block.id, movementId)}
                     onRemove={(movementId) => removeMovement(block.id, movementId)}
                     onAttemptsChange={(attempts) =>

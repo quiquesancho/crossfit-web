@@ -11,6 +11,7 @@ export function DraftBlockMovements({
   movements,
   movementsStatus,
   syncStatus,
+  showDuration = false,
   onAdd,
   onRemove,
   onAttemptsChange,
@@ -20,6 +21,7 @@ export function DraftBlockMovements({
   movements: Movement[];
   movementsStatus: "loading" | "ready" | "error";
   syncStatus: "pending" | "synchronized" | "error";
+  showDuration?: boolean;
   onAdd: (movementId: string) => void;
   onRemove: (movementId: string) => void;
   onAttemptsChange: (attempts: SetAttempt[] | undefined) => void;
@@ -110,6 +112,7 @@ export function DraftBlockMovements({
                   prescriptionName={name}
                   actualMovementName={name}
                   unit="kg"
+                  showDuration={showDuration}
                   allAttempts={block.attempts}
                   syncStatus={syncStatus}
                   onChange={onAttemptsChange}

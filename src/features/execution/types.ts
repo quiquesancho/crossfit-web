@@ -26,6 +26,7 @@ export type SetAttempt = {
   note?: string;
   weight?: WeightValue;
   repetitions?: number;
+  durationSeconds?: number;
 };
 
 export type PrescriptionExecutionMetric = {
