@@ -437,5 +437,6 @@ button { font: inherit; }
 }
 
 @media (max-width: 360px) {
-  .app-tabs button { padding: .5rem .2rem; font-size: .72rem; }
+  .app-tabs { gap: .1rem; }
+  .app-tabs button { padding: .5rem .15rem; font-size: .7rem; }
 }
