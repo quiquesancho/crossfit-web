@@ -25,9 +25,10 @@ function formatNumber(value: number): string {
 
 function formatDuration(seconds: number): string {
   if (seconds <= 0) return "Sin tiempo";
-  if (seconds < 60) return `${formatNumber(seconds)} s`;
-  const minutes = Math.floor(seconds / 60);
-  const remaining = Math.round(seconds % 60);
+  const totalSeconds = Math.round(seconds);
+  if (totalSeconds < 60) return `${formatNumber(totalSeconds)} s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const remaining = totalSeconds % 60;
   return remaining === 0
     ? `${minutes} min`
     : `${minutes} min ${String(remaining).padStart(2, "0")} s`;
