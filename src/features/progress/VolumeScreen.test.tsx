@@ -120,6 +120,29 @@ describe("VolumeScreen", () => {
     );
   });
 
+  it("rounds fractional seconds without showing 60 seconds", async () => {
+    fetchVolumeMock.mockResolvedValue({
+      ...movementResponse,
+      totals: {
+        ...movementResponse.totals,
+        durationSeconds: 119.6,
+        technicalDurationSeconds: 119.6,
+      },
+      items: [
+        {
+          ...movementResponse.items[0],
+          durationSeconds: 119.6,
+          technicalDurationSeconds: 119.6,
+        },
+      ],
+    });
+
+    render(<VolumeScreen />);
+
+    expect(await screen.findAllByText("2 min")).toHaveLength(2);
+    expect(screen.queryByText(/60 s/)).toBeNull();
+  });
+
   it("shows an empty state when there is no volume", async () => {
     fetchVolumeMock.mockResolvedValue({
       ...movementResponse,
