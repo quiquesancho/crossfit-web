@@ -31,3 +31,15 @@ export async function apiPut<T>(path: string, body: unknown, signal?: AbortSigna
   if (!response.ok) throw new ApiError(response.status);
   return (await response.json()) as T;
 }
+
+export async function apiPatch<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: "PATCH",
+    signal,
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) throw new ApiError(response.status);
+  return (await response.json()) as T;
+}
